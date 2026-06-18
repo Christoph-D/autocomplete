@@ -84,4 +84,45 @@ suite("sanitizeCompletion", () => {
   test("returns empty for empty input", () => {
     assert.strictEqual(sanitizeCompletion("", ctx(), 64), "");
   });
+
+  test("recovers text from a truncated JSON string", () => {
+    const out = sanitizeCompletion('{"text": "a + b', ctx(), 64);
+    assert.strictEqual(out, "a + b");
+  });
+
+  test("recovers multi-line text from a truncated JSON string", () => {
+    const out = sanitizeCompletion('{"text": "a + b;\\n  return c', ctx(), 64);
+    assert.strictEqual(out, "a + b;\n  return c");
+  });
+
+  test("drops a dangling backslash at the truncation point", () => {
+    const out = sanitizeCompletion('{"text": "a + b\\', ctx(), 64);
+    assert.strictEqual(out, "a + b");
+  });
+
+  test("drops an incomplete unicode escape at the truncation point", () => {
+    const out = sanitizeCompletion('{"text": "a + b\\u00', ctx(), 64);
+    assert.strictEqual(out, "a + b");
+  });
+
+  test("keeps a complete unicode escape before truncation", () => {
+    const out = sanitizeCompletion('{"text": "a\\u0041b', ctx(), 64);
+    assert.strictEqual(out, "aAb");
+  });
+
+  test("handles a truncated string containing an escaped quote", () => {
+    const out = sanitizeCompletion('{"text": "a \\"b\\" c', ctx(), 64);
+    assert.strictEqual(out, 'a "b" c');
+  });
+
+  test("returns empty when truncated payload has no text field", () => {
+    const out = sanitizeCompletion('{"completion": "a + b', ctx(), 64);
+    assert.strictEqual(out, "");
+  });
+
+  test("recovers a truncated string whose body contains a closing brace", () => {
+    const raw = '{ "text": "func() {\\n\\treturn x\\n}\\n\\nconst y';
+    const out = sanitizeCompletion(raw, ctx(), 64);
+    assert.strictEqual(out, "func() {\n\treturn x\n}\n\nconst y");
+  });
 });

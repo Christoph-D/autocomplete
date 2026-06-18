@@ -62,24 +62,32 @@ export function sanitizeCompletion(raw: string, ctx: CursorContext, maxTokens: n
  *
  * Looks for a JSON object (possibly wrapped in a ```json fence or surrounded by
  * prose) and, if found and parseable, returns its string `"text"` field.
+ *
+ * When the response was cut off by max_tokens mid-string — so it begins with
+ * `{"text":"...` but never reaches a closing quote or brace — we decode the
+ * truncated string content directly, dropping any trailing partial escape
+ * sequence (e.g. a dangling `\` or an incomplete `\uXX`).
+ *
  * Returns an empty string in every other case: no object present, JSON.parse
  * failure, or a parsed value whose `text` is missing or not a string.
  */
 function extractCompletionText(raw: string): string {
   const json = extractJsonObject(raw);
-  if (json === null) {
-    return "";
-  }
-  try {
-    const parsed = JSON.parse(json) as unknown;
-    const text = (parsed as { text?: unknown } | null)?.text;
-    if (typeof text === "string") {
-      return text;
+  if (json !== null) {
+    try {
+      const parsed = JSON.parse(json) as unknown;
+      const text = (parsed as { text?: unknown } | null)?.text;
+      if (typeof text === "string") {
+        return text;
+      }
+      return "";
+    } catch {
+      // The braces did not enclose valid JSON — most likely a string truncated
+      // mid-way whose body contained a stray `}`. Fall through and try to
+      // recover it as a truncation.
     }
-    return "";
-  } catch {
-    return "";
   }
+  return extractTruncatedText(raw);
 }
 
 /**
@@ -98,4 +106,73 @@ function extractJsonObject(raw: string): string | null {
     return trimmed.slice(start, end + 1);
   }
   return null;
+}
+
+/**
+ * Recover the `"text"` value from a response that was truncated mid-string.
+ *
+ * Matches the opening `{"text":"` (allowing arbitrary whitespace, and possibly
+ * preceded by a fence or prose) and decodes the remainder as the content of a
+ * JSON string that never got its closing quote. A trailing partial escape — a
+ * lone backslash or an incomplete `\uXXXX` — is dropped so it does not leak
+ * into the suggestion.
+ */
+function extractTruncatedText(raw: string): string {
+  const trimmed = raw.trim();
+  const startMatch = /\{\s*"text"\s*:\s*"/.exec(trimmed);
+  if (!startMatch) {
+    return "";
+  }
+  const content = trimmed.slice(startMatch.index + startMatch[0].length);
+  return decodeJsonStringContent(content);
+}
+
+/**
+ * Decode the body of a JSON string that may be truncated.
+ *
+ * The content is everything between the opening quote of the `"text"` value and
+ * the cut-off point. JSON.parse does the actual escape decoding once we wrap
+ * the body back in quotes; the only thing it cannot tolerate is a trailing
+ * partial escape sequence, so `stripTrailingPartialEscape` removes that first.
+ * Returns an empty string if the repaired body still fails to parse.
+ */
+function decodeJsonStringContent(content: string): string {
+  const body = stripTrailingPartialEscape(content);
+  try {
+    return JSON.parse('"' + body + '"') as string;
+  } catch {
+    return "";
+  }
+}
+
+/**
+ * Drop an incomplete escape sequence from the end of a JSON string body.
+ *
+ * Truncation can cut an escape in half, leaving either a dangling backslash or
+ * a `\uXXXX` with fewer than four hex digits. We locate the last backslash and
+ * the run it belongs to: an even-length run is just escaped-backslash pairs
+ * (nothing dangling), while an odd-length run means the final backslash opens
+ * an escape. That escape is incomplete only when nothing follows it, or when it
+ * begins a `\u` that runs out of hex digits before the end of the input.
+ */
+function stripTrailingPartialEscape(s: string): string {
+  let last = s.length - 1;
+  while (last >= 0 && s[last] !== "\\") {
+    last--;
+  }
+  if (last < 0) {
+    return s;
+  }
+  let run = 0;
+  for (let j = last; j >= 0 && s[j] === "\\"; j--) {
+    run++;
+  }
+  if (run % 2 === 0) {
+    return s;
+  }
+  const tail = s.slice(last + 1);
+  if (tail === "" || /^u[0-9a-fA-F]{0,3}$/.test(tail)) {
+    return s.slice(0, last);
+  }
+  return s;
 }
