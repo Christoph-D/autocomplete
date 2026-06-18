@@ -102,10 +102,8 @@ export class InlineCompletionProvider implements vscode.InlineCompletionItemProv
     const { document, position } = req;
     const cfg = this.cachedConfig;
 
-    if (signal.aborted || req.controller.signal.aborted) {
-      if (!req.settled) {
-        req.resolve([]);
-      }
+    if (this.cancelled(req, signal)) {
+      this.discard(req, "before request");
       return;
     }
 
@@ -123,12 +121,11 @@ export class InlineCompletionProvider implements vscode.InlineCompletionItemProv
       }
       const request = buildRequest(messages, cfg, apiKey);
 
-      const raw = await this.deps.client.complete(request, signal);
+      const live = AbortSignal.any([signal, req.controller.signal]);
+      const raw = await this.deps.client.complete(request, live);
       this.deps.logger.appendLine(`[trace] llm response: ${JSON.stringify(raw)}`);
-      if (signal.aborted || req.controller.signal.aborted) {
-        if (!req.settled) {
-          req.resolve([]);
-        }
+      if (this.cancelled(req, signal)) {
+        this.discard(req, "after response");
         return;
       }
 
@@ -138,10 +135,8 @@ export class InlineCompletionProvider implements vscode.InlineCompletionItemProv
         req.resolve(items);
       }
     } catch (err) {
-      if (signal.aborted || req.controller.signal.aborted) {
-        if (!req.settled) {
-          req.resolve([]);
-        }
+      if (this.cancelled(req, signal)) {
+        this.discard(req, "after error");
         return;
       }
       const msg = err instanceof Error ? err.message : String(err);
@@ -156,6 +151,17 @@ export class InlineCompletionProvider implements vscode.InlineCompletionItemProv
       if (this.current === req) {
         this.current = null;
       }
+    }
+  }
+
+  private cancelled(req: PendingRequest, signal: AbortSignal): boolean {
+    return signal.aborted || req.controller.signal.aborted;
+  }
+
+  private discard(req: PendingRequest, when: string): void {
+    this.deps.logger.appendLine(`[trace] discarded superseded response (${when})`);
+    if (!req.settled) {
+      req.resolve([]);
     }
   }
 
