@@ -63,8 +63,7 @@ export class InlineCompletionProvider implements vscode.InlineCompletionItemProv
       document,
       position,
       controller,
-      resolve: () => {
-      },
+      resolve: () => {},
       settled: false,
     };
     this.current = pending;
@@ -134,9 +133,7 @@ export class InlineCompletionProvider implements vscode.InlineCompletionItemProv
       }
 
       const text = sanitizeCompletion(raw, ctx, cfg.maxTokens);
-      const items = text
-        ? [new vscode.InlineCompletionItem(text, new vscode.Range(position, position))]
-        : [];
+      const items = text ? [new vscode.InlineCompletionItem(text, new vscode.Range(position, position))] : [];
       if (!req.settled) {
         req.resolve(items);
       }

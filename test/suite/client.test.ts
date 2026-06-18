@@ -16,11 +16,7 @@ function baseRequest(overrides: Partial<CompletionRequest> = {}): CompletionRequ
   };
 }
 
-function mockFetch(opts: {
-  status?: number;
-  body?: unknown;
-  text?: string;
-}): typeof fetch {
+function mockFetch(opts: { status?: number; body?: unknown; text?: string }): typeof fetch {
   const status = opts.status ?? 200;
   return (async (_url: unknown, _init?: unknown) => {
     return {
@@ -94,10 +90,7 @@ suite("LlmClient", () => {
     }) as typeof fetch;
 
     const client = createLlmClient({ fetch: fetchFn });
-    await client.complete(
-      baseRequest({ baseUrl: "https://example.com/v1///" }),
-      new AbortController().signal,
-    );
+    await client.complete(baseRequest({ baseUrl: "https://example.com/v1///" }), new AbortController().signal);
     assert.strictEqual(capturedUrl, "https://example.com/v1/chat/completions");
   });
 
@@ -149,10 +142,7 @@ suite("LlmClient", () => {
     }) as typeof fetch;
 
     const client = createLlmClient({ fetch: fetchFn });
-    await client.complete(
-      baseRequest({ model: "deepseek-v4-flash" }),
-      new AbortController().signal,
-    );
+    await client.complete(baseRequest({ model: "deepseek-v4-flash" }), new AbortController().signal);
     const body = JSON.parse(String(capturedInit?.body));
     assert.deepStrictEqual(body.thinking, { type: "disabled" });
   });
@@ -227,10 +217,7 @@ suite("LlmClient", () => {
     }) as typeof fetch;
 
     const client = createLlmClient({ fetch: fetchFn });
-    await client.complete(
-      baseRequest({ model: "codestral-latest" }),
-      new AbortController().signal,
-    );
+    await client.complete(baseRequest({ model: "codestral-latest" }), new AbortController().signal);
     const body = JSON.parse(String(capturedInit?.body));
     assert.ok(!("thinking" in body));
   });

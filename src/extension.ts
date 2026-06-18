@@ -113,11 +113,7 @@ function handleError(err: LlmError): void {
 
   if (err.status === 401 || err.status === 403) {
     void vscode.window
-      .showWarningMessage(
-        "AI Autocomplete: API key rejected by the backend. Update your key?",
-        "Set key",
-        "Dismiss",
-      )
+      .showWarningMessage("AI Autocomplete: API key rejected by the backend. Update your key?", "Set key", "Dismiss")
       .then((choice) => {
         if (choice === "Set key") {
           void setApiKeyCommand();

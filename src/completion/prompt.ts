@@ -10,24 +10,22 @@ export interface ChatMessage {
  * Example of the JSON object we ask the model to emit. Kept tiny on purpose:
  * a single `text` field holding the exact text to insert at the cursor.
  */
-export const COMPLETION_RESPONSE_EXAMPLE = '{ "text": "<the exact code to insert at the cursor including leading newlines>" }';
+export const COMPLETION_RESPONSE_EXAMPLE =
+  '{ "text": "<the exact code to insert at the cursor including leading newlines>" }';
 
 const SYSTEM_PROMPT = [
   "You are an expert code completion engine.",
   "The user's editor contains the file shown below. The text <<<CURSOR>>> marks the cursor position.",
   "Respond ONLY with a single JSON object and nothing else. The JSON object MUST have this shape:",
   COMPLETION_RESPONSE_EXAMPLE,
-  "The \"text\" value must be the exact text to insert at <<<CURSOR>>>.",
+  'The "text" value must be the exact text to insert at <<<CURSOR>>>.',
   "Do NOT repeat code or syntax that already appears on the lines before or after <<<CURSOR>>>.",
   "Do NOT wrap the JSON in a markdown code fence and do NOT add any prose or explanation.",
-  "If no completion is appropriate, respond with { \"text\": \"\" }.",
+  'If no completion is appropriate, respond with { "text": "" }.',
   "The response must be valid JSON that can be parsed by JSON.parse.",
 ].join(" ");
 
-export function buildMessages(
-  ctx: CursorContext,
-  _cfg: AutocompleteConfig,
-): ChatMessage[] {
+export function buildMessages(ctx: CursorContext, _cfg: AutocompleteConfig): ChatMessage[] {
   const fileName = ctx.filePath ? ctx.filePath : "<untitled>";
   const user = [
     `Path: ${fileName}`,
@@ -58,11 +56,7 @@ export interface CompletionRequest {
   responseFormat: { type: "json_object" };
 }
 
-export function buildRequest(
-  messages: ChatMessage[],
-  cfg: AutocompleteConfig,
-  apiKey: string,
-): CompletionRequest {
+export function buildRequest(messages: ChatMessage[], cfg: AutocompleteConfig, apiKey: string): CompletionRequest {
   return {
     baseUrl: cfg.apiBaseUrl,
     apiKey,

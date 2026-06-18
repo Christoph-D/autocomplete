@@ -42,10 +42,7 @@ export function createLlmClient(deps: LlmClientDeps = {}): LlmClient {
 
       const controller = new AbortController();
       inflight = controller;
-      const timer = setTimeout(
-        () => controller.abort(),
-        Math.max(100, req.requestTimeoutMs),
-      );
+      const timer = setTimeout(() => controller.abort(), Math.max(100, req.requestTimeoutMs));
 
       const onParentAbort = () => controller.abort();
       signal.addEventListener("abort", onParentAbort, { once: true });
@@ -93,11 +90,7 @@ export function createLlmClient(deps: LlmClientDeps = {}): LlmClient {
         if ((err as { name?: string }).name === "AbortError") {
           throw new LlmError("LLM request aborted (timeout or user cancellation).");
         }
-        throw new LlmError(
-          `LLM request error: ${err instanceof Error ? err.message : String(err)}`,
-          undefined,
-          err,
-        );
+        throw new LlmError(`LLM request error: ${err instanceof Error ? err.message : String(err)}`, undefined, err);
       } finally {
         clearTimeout(timer);
         signal.removeEventListener("abort", onParentAbort);

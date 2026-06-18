@@ -4,15 +4,7 @@ import globals from "globals";
 
 export default tseslint.config(
   {
-    ignores: [
-      "dist/**",
-      "out/**",
-      ".vscode-test/**",
-      "tmp/**",
-      "**/*.d.ts",
-      "esbuild.config.mjs",
-      "eslint.config.mjs",
-    ],
+    ignores: ["dist/**", "out/**", ".vscode-test/**", "tmp/**", "**/*.d.ts", "esbuild.config.mjs", "eslint.config.mjs"],
   },
 
   js.configs.recommended,

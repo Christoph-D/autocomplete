@@ -15,11 +15,7 @@ import type { CursorContext } from "./context";
  * 4. Trim a trailing newline so the suggestion doesn't force a new line.
  * 5. Cap length to 4 * maxTokens chars as a safety net.
  */
-export function sanitizeCompletion(
-  raw: string,
-  ctx: CursorContext,
-  maxTokens: number,
-): string {
+export function sanitizeCompletion(raw: string, ctx: CursorContext, maxTokens: number): string {
   if (!raw) {
     return "";
   }
@@ -33,10 +29,7 @@ export function sanitizeCompletion(
 
   if (ctx.lineBeforeCursor.length > 0 && firstLine.startsWith(ctx.lineBeforeCursor)) {
     text = text.slice(ctx.lineBeforeCursor.length);
-  } else if (
-    ctx.lineBeforeCursor.length > 0 &&
-    firstLine.trimEnd() === ctx.lineBeforeCursor.trimEnd()
-  ) {
+  } else if (ctx.lineBeforeCursor.length > 0 && firstLine.trimEnd() === ctx.lineBeforeCursor.trimEnd()) {
     text = firstLineEnd >= 0 ? text.slice(firstLineEnd + 1) : "";
   }
 

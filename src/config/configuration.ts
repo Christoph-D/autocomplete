@@ -32,9 +32,5 @@ export function readConfig(): AutocompleteConfig {
 }
 
 export async function setEnabled(value: boolean): Promise<void> {
-  await vscode.workspace.getConfiguration(SECTION).update(
-    "enabled",
-    value,
-    vscode.ConfigurationTarget.Global,
-  );
+  await vscode.workspace.getConfiguration(SECTION).update("enabled", value, vscode.ConfigurationTarget.Global);
 }

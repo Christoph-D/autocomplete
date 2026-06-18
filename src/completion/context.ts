@@ -57,14 +57,10 @@ export function buildContext(
     }
   }
 
-  const prefixLastLine = prefix.includes("\n")
-    ? prefix.slice(prefix.lastIndexOf("\n") + 1)
-    : prefix;
+  const prefixLastLine = prefix.includes("\n") ? prefix.slice(prefix.lastIndexOf("\n") + 1) : prefix;
 
   const folder = vscode.workspace.getWorkspaceFolder(doc.uri);
-  const filePath = folder
-    ? vscode.workspace.asRelativePath(doc.uri)
-    : doc.fileName;
+  const filePath = folder ? vscode.workspace.asRelativePath(doc.uri) : doc.fileName;
 
   return {
     filePath,

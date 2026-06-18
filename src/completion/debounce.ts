@@ -49,8 +49,7 @@ export function createDebouncer<T>(
       const v = pendingValue;
       pendingValue = null;
       pendingSignal = null;
-      void fn(v as T, localSignal).catch(() => {
-      });
+      void fn(v as T, localSignal).catch(() => {});
     }, delay);
   }
 
