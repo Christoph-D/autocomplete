@@ -37,10 +37,18 @@ suite("prompt", () => {
     assert.strictEqual(messages[1].role, "user");
   });
 
-  test("system prompt forbids prose", () => {
+  test("system prompt requests JSON output", () => {
     const messages = buildMessages(ctx(), cfg());
-    assert.ok(/ONLY/i.test(messages[0].content));
-    assert.ok(/no.*prose|do not.*prose/i.test(messages[0].content));
+    const system = messages[0].content;
+    assert.ok(/JSON/i.test(system), "system prompt must mention JSON");
+    assert.ok(/"text"/.test(system), "system prompt must describe the text field");
+    assert.ok(/JSON\.parse/.test(system), "system prompt must require parseable JSON");
+    assert.ok(/do not.*prose|no.*prose/i.test(system));
+  });
+
+  test("system prompt forbids markdown fences", () => {
+    const messages = buildMessages(ctx(), cfg());
+    assert.ok(/code fence/i.test(messages[0].content));
   });
 
   test("user prompt embeds prefix, cursor sentinel, and suffix", () => {
@@ -51,14 +59,15 @@ suite("prompt", () => {
     assert.ok(user.includes("}\n"), "suffix missing");
   });
 
-  test("user prompt includes path and language", () => {
+  test("user prompt includes path, language, and the JSON shape", () => {
     const messages = buildMessages(ctx(), cfg());
     const user = messages[1].content;
     assert.ok(user.includes("foo.ts"), "file path missing");
     assert.ok(user.includes("typescript"), "language missing");
+    assert.ok(/"text"/.test(user), "user prompt must reference the JSON shape");
   });
 
-  test("buildRequest copies config + apiKey", () => {
+  test("buildRequest copies config + apiKey and enables JSON mode", () => {
     const messages = buildMessages(ctx(), cfg());
     const req = buildRequest(messages, cfg(), "sk-test");
     assert.strictEqual(req.apiKey, "sk-test");
@@ -67,5 +76,6 @@ suite("prompt", () => {
     assert.strictEqual(req.messages, messages);
     assert.strictEqual(req.maxTokens, 64);
     assert.strictEqual(req.temperature, 0.2);
+    assert.deepStrictEqual(req.responseFormat, { type: "json_object" });
   });
 });

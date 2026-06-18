@@ -3,8 +3,13 @@ import type { CursorContext } from "./context";
 /**
  * Clean a raw model response into the text that should be inserted at the cursor.
  *
+ * The model is asked (via JSON mode) to return an object of the form
+ * `{ "text": "..." }`. We extract that field, but degrade gracefully when a
+ * model ignores the instruction and returns a fenced code block or raw text.
+ *
  * Steps:
- * 1. Extract content from a fenced code block if present.
+ * 1. Extract the completion text: prefer the "text" field of a JSON object;
+ *    otherwise fall back to stripping a markdown code fence.
  * 2. Strip a leading re-indent that doesn't match the cursor line's indentation.
  * 3. Remove an echo of the last non-empty line of the prefix.
  * 4. Trim a trailing newline so the suggestion doesn't force a new line.
@@ -19,7 +24,7 @@ export function sanitizeCompletion(
     return "";
   }
 
-  let text = stripCodeFence(raw);
+  let text = extractCompletionText(raw);
 
   const indentMatch = /^\s*/.exec(ctx.lineBeforeCursor);
   const cursorIndent = indentMatch ? indentMatch[0] : "";
@@ -56,6 +61,50 @@ export function sanitizeCompletion(
   }
 
   return text;
+}
+
+/**
+ * Pull the completion string out of a raw model response.
+ *
+ * Tries, in order:
+ *   1. A JSON object (possibly wrapped in a ```json fence or surrounded by
+ *      prose) whose `"text"` field is a string.
+ *   2. A markdown code fence (graceful fallback for models that ignore the
+ *      JSON-mode instruction and echo a fenced block instead).
+ *   3. The raw text as-is.
+ */
+function extractCompletionText(raw: string): string {
+  const json = extractJsonObject(raw);
+  if (json !== null) {
+    try {
+      const parsed = JSON.parse(json) as unknown;
+      const text = (parsed as { text?: unknown } | null)?.text;
+      if (typeof text === "string") {
+        return text;
+      }
+    } catch {
+      // Looked like JSON but did not parse; fall through to fence stripping.
+    }
+  }
+  return stripCodeFence(raw);
+}
+
+/**
+ * Find a JSON object substring within the raw response.
+ *
+ * Handles a bare object, an object wrapped in a ``` (json) fence, and an
+ * object embedded in surrounding prose by taking the first `{` and the last
+ * `}`. Returns the substring (inclusive of the braces), or null when no
+ * plausible object is present.
+ */
+function extractJsonObject(raw: string): string | null {
+  const trimmed = raw.trim();
+  const start = trimmed.indexOf("{");
+  const end = trimmed.lastIndexOf("}");
+  if (start >= 0 && end > start) {
+    return trimmed.slice(start, end + 1);
+  }
+  return null;
 }
 
 function stripCodeFence(raw: string): string {

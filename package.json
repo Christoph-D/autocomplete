@@ -123,7 +123,7 @@
     "build": "node esbuild.config.mjs --production",
     "watch": "node esbuild.config.mjs --watch",
     "compile": "tsc --noEmit",
-    "build:tests": "tsc -p tsconfig.json",
+    "build:tests": "tsc -p tsconfig.test.json",
     "pretest": "pnpm run build:tests",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",

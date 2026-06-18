@@ -6,13 +6,22 @@ export interface ChatMessage {
   content: string;
 }
 
+/**
+ * Example of the JSON object we ask the model to emit. Kept tiny on purpose:
+ * a single `text` field holding the exact text to insert at the cursor.
+ */
+export const COMPLETION_RESPONSE_EXAMPLE = '{ "text": "<the exact code to insert at the cursor including leading newlines>" }';
+
 const SYSTEM_PROMPT = [
   "You are an expert code completion engine.",
   "The user's editor contains the file shown below. The text <<<CURSOR>>> marks the cursor position.",
-  "Reply ONLY with the exact text that should be inserted at <<<CURSOR>>>'s line wrapped in a single markdown code fence.",
-  "Do not include prose or any explanation outside the code fence.",
-  "Do not repeat code or syntax that already appears in the lines before or after <<<CURSOR>>>.",
-  "If no completion is appropriate, reply with an empty string.",
+  "Respond ONLY with a single JSON object and nothing else. The JSON object MUST have this shape:",
+  COMPLETION_RESPONSE_EXAMPLE,
+  "The \"text\" value must be the exact text to insert at <<<CURSOR>>>.",
+  "Do NOT repeat code or syntax that already appears on the lines before or after <<<CURSOR>>>.",
+  "Do NOT wrap the JSON in a markdown code fence and do NOT add any prose or explanation.",
+  "If no completion is appropriate, respond with { \"text\": \"\" }.",
+  "The response must be valid JSON that can be parsed by JSON.parse.",
 ].join(" ");
 
 export function buildMessages(
@@ -28,9 +37,8 @@ export function buildMessages(
     `${ctx.prefix}<<<CURSOR>>>${ctx.suffix}`,
     "```",
     "",
-    `Begin your response with:`,
-    "```",
-    ctx.lineBeforeCursor,
+    `Return ONLY a JSON object ${COMPLETION_RESPONSE_EXAMPLE} whose "text" is the exact code to insert at <<<CURSOR>>>.`,
+    "Do not repeat the text already present before or after <<<CURSOR>>>.",
   ].join("\n");
 
   return [
@@ -47,6 +55,7 @@ export interface CompletionRequest {
   maxTokens: number;
   temperature: number;
   requestTimeoutMs: number;
+  responseFormat: { type: "json_object" };
 }
 
 export function buildRequest(
@@ -62,5 +71,6 @@ export function buildRequest(
     maxTokens: cfg.maxTokens,
     temperature: cfg.temperature,
     requestTimeoutMs: cfg.requestTimeoutMs,
+    responseFormat: { type: "json_object" },
   };
 }

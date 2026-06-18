@@ -51,6 +51,7 @@ export function createLlmClient(deps: LlmClientDeps = {}): LlmClient {
           max_tokens: req.maxTokens,
           temperature: req.temperature,
           stream: false,
+          response_format: req.responseFormat,
         };
         if (req.model.startsWith("deepseek")) {
           reqBody.thinking = { type: "disabled" };

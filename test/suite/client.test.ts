@@ -11,6 +11,7 @@ function baseRequest(overrides: Partial<CompletionRequest> = {}): CompletionRequ
     maxTokens: 16,
     temperature: 0,
     requestTimeoutMs: 5000,
+    responseFormat: { type: "json_object" },
     ...overrides,
   };
 }
@@ -72,6 +73,7 @@ suite("LlmClient", () => {
     assert.strictEqual(body.model, "example-model");
     assert.strictEqual(body.stream, false);
     assert.strictEqual(body.max_tokens, 16);
+    assert.deepStrictEqual(body.response_format, { type: "json_object" });
   });
 
   test("strips trailing slashes from baseUrl", async () => {
