@@ -1,0 +1,156 @@
+{
+  "name": "ai-autocomplete",
+  "displayName": "AI Autocomplete",
+  "description": "Inline AI code autocompletion using any OpenAI-compatible backend.",
+  "version": "0.1.0",
+  "publisher": "local",
+  "engines": {
+    "vscode": "^1.74.0"
+  },
+  "categories": [
+    "AI",
+    "Machine Learning",
+    "Programming Languages"
+  ],
+  "extensionKind": ["ui", "workspace"],
+  "main": "./dist/extension.js",
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "contributes": {
+    "configuration": {
+      "title": "AI Autocomplete",
+      "properties": {
+        "aiAutocomplete.enabled": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "Enable inline AI autocompletion."
+        },
+        "aiAutocomplete.model": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "Model name sent to the backend (e.g. `codestral-latest`, `deepseek-v4-flash`, or any model your OpenAI-compatible endpoint serves)."
+        },
+        "aiAutocomplete.apiBaseUrl": {
+          "type": "string",
+          "default": "https://example.com/v1",
+          "markdownDescription": "Base URL of an OpenAI-compatible `/chat/completions` endpoint. Usually ends in `/v1`. Works with OpenRouter, Mistral, Deepseek, Z.ai, OpenAI, Ollama, LM Studio, etc."
+        },
+        "aiAutocomplete.idleDelayMs": {
+          "type": "number",
+          "default": 150,
+          "minimum": 0,
+          "maximum": 2000,
+          "markdownDescription": "Idle delay (ms) after the last keystroke before a completion request is sent."
+        },
+        "aiAutocomplete.maxContextLinesBefore": {
+          "type": "number",
+          "default": 100,
+          "minimum": 0,
+          "maximum": 1000,
+          "markdownDescription": "Maximum number of lines taken from before the cursor as context."
+        },
+        "aiAutocomplete.maxContextLinesAfter": {
+          "type": "number",
+          "default": 50,
+          "minimum": 0,
+          "maximum": 1000,
+          "markdownDescription": "Maximum number of lines taken from after the cursor as context (fill-in-the-middle style)."
+        },
+        "aiAutocomplete.maxTokens": {
+          "type": "number",
+          "default": 100,
+          "minimum": 1,
+          "maximum": 4096,
+          "markdownDescription": "Maximum tokens to generate per completion."
+        },
+        "aiAutocomplete.temperature": {
+          "type": "number",
+          "default": 0.2,
+          "minimum": 0,
+          "maximum": 2,
+          "markdownDescription": "Sampling temperature."
+        },
+        "aiAutocomplete.requestTimeoutMs": {
+          "type": "number",
+          "default": 10000,
+          "minimum": 500,
+          "maximum": 120000,
+          "markdownDescription": "Per-request network timeout in milliseconds."
+        },
+        "aiAutocomplete.maxContextChars": {
+          "type": "number",
+          "default": 10000,
+          "minimum": 200,
+          "maximum": 1000000,
+          "markdownDescription": "Hard character cap on the assembled prompt prefix+suffix to avoid excessively large requests."
+        }
+      }
+    },
+    "commands": [
+      {
+        "command": "aiAutocomplete.setApiKey",
+        "title": "AI Autocomplete: Set API Key",
+        "category": "AI Autocomplete"
+      },
+      {
+        "command": "aiAutocomplete.clearApiKey",
+        "title": "AI Autocomplete: Clear API Key",
+        "category": "AI Autocomplete"
+      },
+      {
+        "command": "aiAutocomplete.toggleEnabled",
+        "title": "AI Autocomplete: Toggle",
+        "category": "AI Autocomplete"
+      },
+      {
+        "command": "aiAutocomplete.trigger",
+        "title": "AI Autocomplete: Trigger Suggestion",
+        "category": "AI Autocomplete"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "aiAutocomplete.trigger",
+        "key": "alt+\\",
+        "mac": "alt+\\",
+        "when": "editorTextFocus"
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "pnpm run build -- --minify",
+    "build": "node esbuild.config.mjs --production",
+    "watch": "node esbuild.config.mjs --watch",
+    "compile": "tsc --noEmit",
+    "build:tests": "tsc -p tsconfig.json",
+    "pretest": "pnpm run build:tests",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "test": "node ./out/test/runTest.js",
+    "package": "vsce package --no-dependencies"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@stylistic/eslint-plugin": "^5.10.0",
+    "@types/mocha": "^10.0.10",
+    "@types/node": "^20.19.0",
+    "@types/vscode": "^1.74.0",
+    "@vscode/test-electron": "^2.5.2",
+    "esbuild": "^0.25.0",
+    "eslint": "^10.5.0",
+    "globals": "^17.6.0",
+    "mocha": "^10.8.2",
+    "typescript": "^5.7.0",
+    "typescript-eslint": "^8.61.1"
+  },
+  "pnpm": {
+    "allowBuilds": {
+      "@vscode/vsce-sign": false,
+      "keytar": false
+    },
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
+  }
+}
