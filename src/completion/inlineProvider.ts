@@ -4,8 +4,7 @@ import type { SecretStore } from "../config/secrets";
 import { buildContext } from "./context";
 import { buildMessages, buildRequest } from "./prompt";
 import { sanitizeCompletion } from "./parse";
-import { createDebouncer } from "./debounce";
-import type { LlmClient, LlmError } from "../llm/client";
+import { LlmError, type LlmClient } from "../llm/client";
 
 export interface InlineProviderDeps {
   secrets: SecretStore;
@@ -14,28 +13,23 @@ export interface InlineProviderDeps {
   onError?: (err: LlmError) => void;
 }
 
-interface PendingRequest {
-  document: vscode.TextDocument;
-  position: vscode.Position;
-  controller: AbortController;
-  resolve: (items: vscode.InlineCompletionItem[]) => void;
-  settled: boolean;
-}
-
+/**
+ * Inline completion provider that defers debouncing and request supersession
+ * to VS Code, honoring the CancellationToken it passes in.
+ *
+ * VS Code drops any result that resolves after its token is cancelled (see
+ * provideInlineCompletions in the VS Code tree), so this provider must respond
+ * quickly and abort the HTTP fetch as soon as VS Code signals cancellation.
+ * Internal debouncing only widens the cancellation window and is intentionally
+ * avoided — VS Code already debounces via its inline-suggest debounce service.
+ */
 export class InlineCompletionProvider implements vscode.InlineCompletionItemProvider {
-  private current: PendingRequest | null = null;
-  private readonly debouncer: ReturnType<typeof createDebouncer<PendingRequest>>;
   private cachedConfig: AutocompleteConfig = readConfig();
 
-  constructor(private readonly deps: InlineProviderDeps) {
-    this.debouncer = createDebouncer(this.cachedConfig.idleDelayMs, async (req, signal) => {
-      await this.run(req, signal);
-    });
-  }
+  constructor(private readonly deps: InlineProviderDeps) {}
 
   refreshConfig(): void {
     this.cachedConfig = readConfig();
-    this.debouncer.setDelay(this.cachedConfig.idleDelayMs);
   }
 
   async provideInlineCompletionItems(
@@ -51,122 +45,66 @@ export class InlineCompletionProvider implements vscode.InlineCompletionItemProv
     if (document.uri.scheme !== "file" && document.uri.scheme !== "untitled") {
       return [];
     }
+    if (token.isCancellationRequested) {
+      return [];
+    }
+
     const apiKey = await this.deps.secrets.getApiKey();
+    if (token.isCancellationRequested) {
+      return [];
+    }
     if (!apiKey) {
       return [];
     }
 
-    this.supersedeCurrent();
+    const ctx = buildContext(document, position, cfg);
+    const messages = buildMessages(ctx, cfg);
+    const userMessage = messages.find((m) => m.role === "user")?.content;
+    this.deps.logger.appendLine(`[trace] llm user message: ${JSON.stringify(userMessage)}`);
 
+    // Bridge VS Code's cancellation token to an AbortSignal for the HTTP fetch.
+    // This must stay scoped to this request: the listener is disposed in the
+    // finally block so cancellation of one request never bleeds into another.
     const controller = new AbortController();
-    const pending: PendingRequest = {
-      document,
-      position,
-      controller,
-      resolve: () => {},
-      settled: false,
-    };
-    this.current = pending;
-
-    const promise = new Promise<vscode.InlineCompletionItem[]>((resolve) => {
-      pending.resolve = (items) => {
-        pending.settled = true;
-        resolve(items);
-      };
+    if (token.isCancellationRequested) {
+      controller.abort();
+    }
+    const cancelSubscription = token.onCancellationRequested(() => {
+      controller.abort();
     });
 
-    token.onCancellationRequested(() => {
-      if (!pending.settled) {
-        controller.abort();
-      }
-    });
-
-    this.debouncer.run(pending);
-    return promise;
-  }
-
-  private supersedeCurrent(): void {
-    const prev = this.current;
-    if (!prev) {
-      return;
-    }
-    prev.controller.abort();
-    if (!prev.settled) {
-      prev.resolve([]);
-    }
-    this.current = null;
-    this.debouncer.cancel();
-  }
-
-  private async run(req: PendingRequest, signal: AbortSignal): Promise<void> {
-    const { document, position } = req;
-    const cfg = this.cachedConfig;
-
-    if (this.cancelled(req, signal)) {
-      this.discard(req, "before request");
-      return;
-    }
-
+    const startedAt = Date.now();
     try {
-      const ctx = buildContext(document, position, cfg);
-      const messages = buildMessages(ctx, cfg);
-      const userMessage = messages.find((m) => m.role === "user")?.content;
-      this.deps.logger.appendLine(`[trace] llm user message: ${JSON.stringify(userMessage)}`);
-      const apiKey = await this.deps.secrets.getApiKey();
-      if (!apiKey) {
-        if (!req.settled) {
-          req.resolve([]);
-        }
-        return;
-      }
       const request = buildRequest(messages, cfg, apiKey);
-
-      const live = AbortSignal.any([signal, req.controller.signal]);
-      const raw = await this.deps.client.complete(request, live);
-      this.deps.logger.appendLine(`[trace] llm response: ${JSON.stringify(raw)}`);
-      if (this.cancelled(req, signal)) {
-        this.discard(req, "after response");
-        return;
+      const raw = await this.deps.client.complete(request, controller.signal);
+      const elapsed = Date.now() - startedAt;
+      if (token.isCancellationRequested) {
+        this.deps.logger.appendLine(`[trace] discarded superseded response (after response, ${elapsed}ms)`);
+        return [];
       }
-
+      this.deps.logger.appendLine(`[trace] llm response: ${JSON.stringify(raw)} (${elapsed}ms)`);
       const text = sanitizeCompletion(raw, ctx, cfg.maxTokens);
-      const items = text ? [new vscode.InlineCompletionItem(text, new vscode.Range(position, position))] : [];
-      if (!req.settled) {
-        req.resolve(items);
-      }
+      return text ? [new vscode.InlineCompletionItem(text, new vscode.Range(position, position))] : [];
     } catch (err) {
-      if (this.cancelled(req, signal)) {
-        this.discard(req, "after error");
-        return;
+      const elapsed = Date.now() - startedAt;
+      if (token.isCancellationRequested) {
+        this.deps.logger.appendLine(`[trace] discarded superseded response (after error, ${elapsed}ms)`);
+        return [];
       }
       const msg = err instanceof Error ? err.message : String(err);
-      this.deps.logger.appendLine(`[inline] request failed: ${msg}`);
-      if (err instanceof Error && err.name === "LlmError") {
+      this.deps.logger.appendLine(`[inline] request failed: ${msg} (${elapsed}ms)`);
+      if (err instanceof LlmError) {
         this.deps.onError?.(err);
       }
-      if (!req.settled) {
-        req.resolve([]);
-      }
+      return [];
     } finally {
-      if (this.current === req) {
-        this.current = null;
-      }
-    }
-  }
-
-  private cancelled(req: PendingRequest, signal: AbortSignal): boolean {
-    return signal.aborted || req.controller.signal.aborted;
-  }
-
-  private discard(req: PendingRequest, when: string): void {
-    this.deps.logger.appendLine(`[trace] discarded superseded response (${when})`);
-    if (!req.settled) {
-      req.resolve([]);
+      cancelSubscription.dispose();
     }
   }
 
   dispose(): void {
-    this.debouncer.dispose();
-    this.supersedeCurrent();
+    // Each request owns its own AbortController and cancellation listener,
+    // which are cleaned up when the request settles. VS Code cancels any
+    // still-pending tokens on deactivation, aborting the in-flight fetches.
   }
 }

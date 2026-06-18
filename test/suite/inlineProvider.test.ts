@@ -1,7 +1,7 @@
 import * as assert from "assert";
 import * as vscode from "vscode";
 import { InlineCompletionProvider } from "../../src/completion/inlineProvider";
-import type { LlmClient } from "../../src/llm/client";
+import { LlmError, type LlmClient } from "../../src/llm/client";
 import type { SecretStore } from "../../src/config/secrets";
 
 function makeSecrets(key = "sk-test"): SecretStore {
@@ -73,6 +73,14 @@ function immediateClient(content: string): LlmClient {
   };
 }
 
+function errorClient(err: Error): LlmClient {
+  return {
+    async complete() {
+      throw err;
+    },
+  };
+}
+
 async function openGoDoc(): Promise<{ doc: vscode.TextDocument; position: vscode.Position }> {
   const content = 'package main\n\nimport (\n\t"fmt"\n)\n\nfunc isOdd\n';
   const doc = await vscode.workspace.openTextDocument({ language: "go", content });
@@ -83,12 +91,6 @@ async function openGoDoc(): Promise<{ doc: vscode.TextDocument; position: vscode
 const CTX = {} as vscode.InlineCompletionContext;
 
 suite("InlineCompletionProvider", () => {
-  suiteSetup(async () => {
-    await vscode.workspace
-      .getConfiguration("aiAutocomplete")
-      .update("idleDelayMs", 10, vscode.ConfigurationTarget.Global);
-  });
-
   test("resolves with a completion item when the LLM responds", async () => {
     const { channel, lines } = makeLogger();
     const provider = new InlineCompletionProvider({
@@ -103,6 +105,7 @@ suite("InlineCompletionProvider", () => {
       assert.strictEqual(items.length, 1);
       assert.match(items[0].insertText as string, /return n % 2 == 1/);
       assert.ok(!lines.some((l) => l.includes("discarded")));
+      assert.ok(!lines.some((l) => l.includes("request failed")));
     } finally {
       provider.dispose();
       token.dispose();
@@ -135,36 +138,6 @@ suite("InlineCompletionProvider", () => {
     }
   });
 
-  test("superseded request resolves with [] and does not throw", async () => {
-    const { channel } = makeLogger();
-    const rec = recordingClient();
-    const provider = new InlineCompletionProvider({
-      secrets: makeSecrets(),
-      client: rec.client,
-      logger: channel,
-    });
-    const { doc, position } = await openGoDoc();
-    const tokenA = new vscode.CancellationTokenSource();
-    const tokenB = new vscode.CancellationTokenSource();
-    try {
-      const promiseA = provider.provideInlineCompletionItems(doc, position, CTX, tokenA.token);
-      await rec.awaitCalled;
-
-      const promiseB = provider.provideInlineCompletionItems(doc, position, CTX, tokenB.token);
-
-      const a = await promiseA;
-      assert.deepStrictEqual(a, []);
-
-      tokenB.cancel();
-      const b = await promiseB;
-      assert.deepStrictEqual(b, []);
-    } finally {
-      provider.dispose();
-      tokenA.dispose();
-      tokenB.dispose();
-    }
-  });
-
   test("discards a response that lands after the token is cancelled", async () => {
     const { channel, lines } = makeLogger();
     const content = '{ "text": "(n int) bool {\\n\\treturn n % 2 == 1\\n}" }';
@@ -185,6 +158,33 @@ suite("InlineCompletionProvider", () => {
 
       assert.deepStrictEqual(items, []);
       assert.ok(lines.some((l) => l.includes("discarded superseded response")));
+    } finally {
+      provider.dispose();
+      token.dispose();
+    }
+  });
+
+  test("surfaces backend errors via onError and resolves with []", async () => {
+    const { channel, lines } = makeLogger();
+    let reported: LlmError | undefined;
+    const provider = new InlineCompletionProvider({
+      secrets: makeSecrets(),
+      client: errorClient(new LlmError("LLM request failed: 429 Too Many Requests", 429)),
+      logger: channel,
+      onError: (err) => {
+        reported = err;
+      },
+    });
+    const { doc, position } = await openGoDoc();
+    const token = new vscode.CancellationTokenSource();
+    try {
+      const items = await provider.provideInlineCompletionItems(doc, position, CTX, token.token);
+
+      assert.deepStrictEqual(items, []);
+      assert.ok(reported instanceof LlmError, "onError must be called with the LlmError");
+      assert.strictEqual(reported?.status, 429);
+      assert.ok(lines.some((l) => l.includes("request failed")));
+      assert.ok(!lines.some((l) => l.includes("discarded")), "real errors must not be masked as discards");
     } finally {
       provider.dispose();
       token.dispose();

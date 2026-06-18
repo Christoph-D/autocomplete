@@ -44,13 +44,6 @@
           "default": "https://example.com/v1",
           "markdownDescription": "Base URL of an OpenAI-compatible `/chat/completions` endpoint. Usually ends in `/v1`. Works with OpenRouter, Mistral, Deepseek, Z.ai, OpenAI, Ollama, LM Studio, etc."
         },
-        "aiAutocomplete.idleDelayMs": {
-          "type": "number",
-          "default": 150,
-          "minimum": 0,
-          "maximum": 2000,
-          "markdownDescription": "Idle delay (ms) after the last keystroke before a completion request is sent."
-        },
         "aiAutocomplete.maxContextLinesBefore": {
           "type": "number",
           "default": 100,

@@ -19,7 +19,6 @@ function cfg(): AutocompleteConfig {
     enabled: true,
     model: "example-model",
     apiBaseUrl: "https://example.com/v1",
-    idleDelayMs: 150,
     maxContextLinesBefore: 100,
     maxContextLinesAfter: 50,
     maxTokens: 64,
