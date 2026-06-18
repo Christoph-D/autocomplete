@@ -157,6 +157,58 @@ suite("LlmClient", () => {
     assert.deepStrictEqual(body.thinking, { type: "disabled" });
   });
 
+  test("cancels previous inflight request when a new one starts", async () => {
+    // fetch that resolves with different content per call, delayed until
+    // either the timer elapses or the supplied signal aborts.
+    let callCount = 0;
+    const fetchFn = (async (_url: unknown, init?: RequestInit) => {
+      callCount += 1;
+      const myCall = callCount;
+      const signal = init?.signal as AbortSignal | undefined;
+      await new Promise<void>((resolve, reject) => {
+        const t = setTimeout(resolve, 50);
+        const onAbort = () => {
+          clearTimeout(t);
+          const e = new Error("aborted");
+          e.name = "AbortError";
+          reject(e);
+        };
+        if (signal) {
+          if (signal.aborted) {
+            onAbort();
+          } else {
+            signal.addEventListener("abort", onAbort, { once: true });
+          }
+        }
+      });
+      return {
+        ok: true,
+        status: 200,
+        statusText: "OK",
+        async text() {
+          return "";
+        },
+        async json() {
+          return { choices: [{ message: { content: `resp-${myCall}` } }] };
+        },
+      } as unknown as Response;
+    }) as typeof fetch;
+
+    const client = createLlmClient({ fetch: fetchFn });
+
+    const first = client.complete(baseRequest(), new AbortController().signal);
+    // Give the first request a tick to register as inflight.
+    await Promise.resolve();
+    const second = client.complete(baseRequest(), new AbortController().signal);
+
+    await assert.rejects(
+      () => first,
+      (err: unknown) => err instanceof LlmError,
+    );
+    const out = await second;
+    assert.strictEqual(out, "resp-2");
+  });
+
   test("does not set thinking for non-deepseek models", async () => {
     let capturedInit: RequestInit | undefined;
     const fetchFn = (async (_url: unknown, init?: RequestInit) => {

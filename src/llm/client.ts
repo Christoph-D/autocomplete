@@ -26,22 +26,28 @@ export interface LlmClientDeps {
 
 export function createLlmClient(deps: LlmClientDeps = {}): LlmClient {
   const doFetch = deps.fetch ?? fetch;
+  let inflight: AbortController | null = null;
 
   return {
     async complete(req, signal): Promise<string> {
+      // Single-flight: cancel any previously in-flight request before starting.
+      if (inflight) {
+        inflight.abort();
+      }
       if (signal.aborted) {
         throw new LlmError("LLM request aborted (timeout or user cancellation).");
       }
 
       const url = `${req.baseUrl.replace(/\/+$/, "")}/chat/completions`;
 
-      const timeoutController = new AbortController();
+      const controller = new AbortController();
+      inflight = controller;
       const timer = setTimeout(
-        () => timeoutController.abort(),
+        () => controller.abort(),
         Math.max(100, req.requestTimeoutMs),
       );
 
-      const onParentAbort = () => timeoutController.abort();
+      const onParentAbort = () => controller.abort();
       signal.addEventListener("abort", onParentAbort, { once: true });
 
       try {
@@ -64,7 +70,7 @@ export function createLlmClient(deps: LlmClientDeps = {}): LlmClient {
             Authorization: `Bearer ${req.apiKey}`,
           },
           body: JSON.stringify(reqBody),
-          signal: timeoutController.signal,
+          signal: controller.signal,
         });
 
         if (!res.ok) {
@@ -95,6 +101,9 @@ export function createLlmClient(deps: LlmClientDeps = {}): LlmClient {
       } finally {
         clearTimeout(timer);
         signal.removeEventListener("abort", onParentAbort);
+        if (inflight === controller) {
+          inflight = null;
+        }
       }
     },
   };
