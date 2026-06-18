@@ -88,7 +88,9 @@ export class InlineCompletionProvider implements vscode.InlineCompletionItemProv
     } catch (err) {
       const elapsed = Date.now() - startedAt;
       if (token.isCancellationRequested) {
-        this.deps.logger.appendLine(`[trace] discarded superseded response (after error, ${elapsed}ms)`);
+        const phase =
+          err instanceof LlmError && err.abortedBeforeFetch ? "cancelled before API call" : "cancelled during API call";
+        this.deps.logger.appendLine(`[trace] discarded superseded response (${phase}, ${elapsed}ms)`);
         return [];
       }
       const msg = err instanceof Error ? err.message : String(err);

@@ -11,6 +11,7 @@ function baseRequest(overrides: Partial<CompletionRequest> = {}): CompletionRequ
     maxTokens: 16,
     temperature: 0,
     requestTimeoutMs: 5000,
+    delayMs: 0,
     responseFormat: { type: "json_object" },
     ...overrides,
   };
@@ -145,6 +146,58 @@ suite("LlmClient", () => {
     await client.complete(baseRequest({ model: "deepseek-v4-flash" }), new AbortController().signal);
     const body = JSON.parse(String(capturedInit?.body));
     assert.deepStrictEqual(body.thinking, { type: "disabled" });
+  });
+
+  test("waits for delayMs before sending the request", async () => {
+    let calledAt = 0;
+    const start = Date.now();
+    const fetchFn = (async () => {
+      calledAt = Date.now();
+      return {
+        ok: true,
+        status: 200,
+        statusText: "OK",
+        async text() {
+          return "";
+        },
+        async json() {
+          return { choices: [{ message: { content: "x" } }] };
+        },
+      } as unknown as Response;
+    }) as typeof fetch;
+
+    const client = createLlmClient({ fetch: fetchFn });
+    await client.complete(baseRequest({ delayMs: 40 }), new AbortController().signal);
+    assert.ok(calledAt - start >= 30, `fetch happened after only ${calledAt - start}ms`);
+  });
+
+  test("abort during delay cancels the request and never calls fetch", async () => {
+    let fetchCalled = false;
+    const fetchFn = (async () => {
+      fetchCalled = true;
+      return {
+        ok: true,
+        status: 200,
+        statusText: "OK",
+        async text() {
+          return "";
+        },
+        async json() {
+          return { choices: [{ message: { content: "x" } }] };
+        },
+      } as unknown as Response;
+    }) as typeof fetch;
+
+    const client = createLlmClient({ fetch: fetchFn });
+    const controller = new AbortController();
+    const p = client.complete(baseRequest({ delayMs: 500 }), controller.signal);
+    await new Promise((r) => setTimeout(r, 10));
+    controller.abort();
+    await assert.rejects(
+      () => p,
+      (err: unknown) => err instanceof LlmError,
+    );
+    assert.strictEqual(fetchCalled, false);
   });
 
   test("cancels previous inflight request when a new one starts", async () => {

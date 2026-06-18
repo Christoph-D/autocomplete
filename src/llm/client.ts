@@ -3,8 +3,9 @@ import type { CompletionRequest } from "../completion/prompt";
 export class LlmError extends Error {
   public readonly status?: number;
   public override readonly cause?: unknown;
+  public readonly abortedBeforeFetch?: boolean;
 
-  constructor(message: string, status?: number, cause?: unknown) {
+  constructor(message: string, status?: number, cause?: unknown, abortedBeforeFetch?: boolean) {
     super(message);
     this.name = "LlmError";
     if (status !== undefined) {
@@ -12,6 +13,9 @@ export class LlmError extends Error {
     }
     if (cause !== undefined) {
       this.cause = cause;
+    }
+    if (abortedBeforeFetch !== undefined) {
+      this.abortedBeforeFetch = abortedBeforeFetch;
     }
   }
 }
@@ -47,7 +51,11 @@ export function createLlmClient(deps: LlmClientDeps = {}): LlmClient {
       const onParentAbort = () => controller.abort();
       signal.addEventListener("abort", onParentAbort, { once: true });
 
+      let fetchStarted = false;
       try {
+        await waitFor(req.delayMs, controller.signal);
+        fetchStarted = true;
+
         const reqBody: Record<string, unknown> = {
           model: req.model,
           messages: req.messages,
@@ -90,7 +98,12 @@ export function createLlmClient(deps: LlmClientDeps = {}): LlmClient {
           throw err;
         }
         if ((err as { name?: string }).name === "AbortError") {
-          throw new LlmError("LLM request aborted (timeout or user cancellation).");
+          throw new LlmError(
+            "LLM request aborted (timeout or user cancellation).",
+            undefined,
+            undefined,
+            !fetchStarted,
+          );
         }
         throw new LlmError(`LLM request error: ${err instanceof Error ? err.message : String(err)}`, undefined, err);
       } finally {
@@ -106,4 +119,27 @@ export function createLlmClient(deps: LlmClientDeps = {}): LlmClient {
 
 function truncate(s: string, n: number): string {
   return s.length <= n ? s : `${s.slice(0, n)}…`;
+}
+
+function waitFor(ms: number, signal: AbortSignal): Promise<void> {
+  if (ms <= 0) {
+    return Promise.resolve();
+  }
+  return new Promise<void>((resolve, reject) => {
+    const onAbort = () => {
+      clearTimeout(timer);
+      const err = new Error("aborted");
+      err.name = "AbortError";
+      reject(err);
+    };
+    const timer = setTimeout(() => {
+      signal.removeEventListener("abort", onAbort);
+      resolve();
+    }, ms);
+    if (signal.aborted) {
+      onAbort();
+    } else {
+      signal.addEventListener("abort", onAbort, { once: true });
+    }
+  });
 }

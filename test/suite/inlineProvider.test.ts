@@ -81,6 +81,27 @@ function errorClient(err: Error): LlmClient {
   };
 }
 
+function delayAbortClient(): { client: LlmClient; awaitCalled: Promise<AbortSignal> } {
+  let resolveCalled!: (s: AbortSignal) => void;
+  const awaitCalled = new Promise<AbortSignal>((r) => {
+    resolveCalled = r;
+  });
+  const client: LlmClient = {
+    async complete(_req, signal) {
+      resolveCalled(signal);
+      return new Promise<string>((_resolve, reject) => {
+        const onAbort = () => reject(new LlmError("LLM request aborted", undefined, undefined, true));
+        if (signal.aborted) {
+          onAbort();
+        } else {
+          signal.addEventListener("abort", onAbort, { once: true });
+        }
+      });
+    },
+  };
+  return { client, awaitCalled };
+}
+
 async function openGoDoc(): Promise<{ doc: vscode.TextDocument; position: vscode.Position }> {
   const content = 'package main\n\nimport (\n\t"fmt"\n)\n\nfunc isOdd\n';
   const doc = await vscode.workspace.openTextDocument({ language: "go", content });
@@ -113,7 +134,7 @@ suite("InlineCompletionProvider", () => {
   });
 
   test("aborts the in-flight fetch when VS Code cancels the token", async () => {
-    const { channel } = makeLogger();
+    const { channel, lines } = makeLogger();
     const rec = recordingClient();
     const provider = new InlineCompletionProvider({
       secrets: makeSecrets(),
@@ -132,6 +153,7 @@ suite("InlineCompletionProvider", () => {
 
       assert.ok(signal.aborted, "fetch signal must be aborted when VS Code cancels the token");
       assert.deepStrictEqual(items, []);
+      assert.ok(lines.some((l) => l.includes("cancelled during API call")));
     } finally {
       provider.dispose();
       token.dispose();
@@ -158,6 +180,32 @@ suite("InlineCompletionProvider", () => {
 
       assert.deepStrictEqual(items, []);
       assert.ok(lines.some((l) => l.includes("discarded superseded response")));
+    } finally {
+      provider.dispose();
+      token.dispose();
+    }
+  });
+
+  test("labels a discard as 'cancelled before API call' when aborted during the delay", async () => {
+    const { channel, lines } = makeLogger();
+    const rec = delayAbortClient();
+    const provider = new InlineCompletionProvider({
+      secrets: makeSecrets(),
+      client: rec.client,
+      logger: channel,
+    });
+    const { doc, position } = await openGoDoc();
+    const token = new vscode.CancellationTokenSource();
+    try {
+      const promise = provider.provideInlineCompletionItems(doc, position, CTX, token.token);
+      await rec.awaitCalled;
+
+      token.cancel();
+      const items = await promise;
+
+      assert.deepStrictEqual(items, []);
+      assert.ok(lines.some((l) => l.includes("cancelled before API call")));
+      assert.ok(!lines.some((l) => l.includes("during API call")));
     } finally {
       provider.dispose();
       token.dispose();
