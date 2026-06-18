@@ -135,7 +135,7 @@
     "pretest": "pnpm run build:tests",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
-    "test": "node ./out/test/runTest.js",
+    "test": "xvfb-run -a node ./out/test/runTest.js",
     "package": "pnpm exec vsce package --no-dependencies",
     "publish": "pnpm exec vsce publish --no-dependencies"
   },
