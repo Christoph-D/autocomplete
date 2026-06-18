@@ -12,6 +12,7 @@ tmp/**
 .github/
 .gitignore
 .eslintrc*
+.prettierignore
 eslint.config.mjs
 esbuild.config.mjs
 **/tsconfig*.json

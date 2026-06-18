@@ -1,6 +1,5 @@
 import js from "@eslint/js";
 import tseslint from "typescript-eslint";
-import stylistic from "@stylistic/eslint-plugin";
 import globals from "globals";
 
 export default tseslint.config(
@@ -33,37 +32,7 @@ export default tseslint.config(
 
   {
     files: ["src/**/*.ts", "test/**/*.ts"],
-    plugins: { "@stylistic": stylistic },
     rules: {
-      // Match existing code style: 2-space indent, double quotes, semicolons, trailing commas.
-      "@stylistic/quotes": [
-        "error",
-        "double",
-        { avoidEscape: true, allowTemplateLiterals: "always" },
-      ],
-      "@stylistic/semi": ["error", "always"],
-      "@stylistic/indent": [
-        "error",
-        2,
-        {
-          SwitchCase: 1,
-          VariableDeclarator: 1,
-          FunctionExpression: { parameters: 1 },
-          CallExpression: { arguments: 1 },
-          ArrayExpression: 1,
-          ObjectExpression: 1,
-          ImportDeclaration: 1,
-          flatTernaryExpressions: false,
-          ignoredNodes: [],
-          ignoreComments: false,
-        },
-      ],
-      "@stylistic/comma-dangle": ["error", "always-multiline"],
-      "@stylistic/no-multiple-empty-lines": [
-        "error",
-        { max: 1, maxEOF: 1, maxBOF: 0 },
-      ],
-
       // Allow intentionally-unused identifiers prefixed with `_`.
       "@typescript-eslint/no-unused-vars": [
         "error",

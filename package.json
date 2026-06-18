@@ -135,6 +135,8 @@
     "pretest": "pnpm run build:tests",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
+    "format": "prettier --write . | { grep -v '(unchanged)$'; true; }",
+    "format:check": "prettier --check --log-level warn .",
     "test": "xvfb-run -a node ./out/test/runTest.js",
     "package": "pnpm exec vsce package --no-dependencies",
     "publish": "pnpm exec vsce publish --no-dependencies"
@@ -142,7 +144,6 @@
   "packageManager": "pnpm@10.33.2",
   "devDependencies": {
     "@eslint/js": "^10.0.1",
-    "@stylistic/eslint-plugin": "^5.10.0",
     "@types/mocha": "^10.0.10",
     "@types/node": "^25.9.3",
     "@types/vscode": "^1.120.0",
@@ -152,6 +153,7 @@
     "eslint": "^10.5.0",
     "globals": "^17.6.0",
     "mocha": "^11.7.6",
+    "prettier": "^3.8.3",
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.61.1"
   },

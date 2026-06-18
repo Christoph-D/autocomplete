@@ -1,0 +1,7 @@
+dist/
+out/
+tmp/
+.vscode-test/
+.*
+pnpm-lock.yaml
+*.vsix
