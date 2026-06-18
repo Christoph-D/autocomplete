@@ -1,17 +1,22 @@
 {
   "name": "ai-autocomplete",
   "displayName": "AI Autocomplete",
-  "description": "Inline AI code autocompletion using any OpenAI-compatible backend.",
+  "description": "Minimal inline AI code autocompletion.",
   "version": "0.1.0",
   "publisher": "local",
   "engines": {
-    "vscode": "^1.74.0"
+    "vscode": "^1.110.0",
+    "node": ">=20"
   },
   "categories": [
     "AI",
     "Machine Learning",
     "Programming Languages"
   ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Christoph-D/autocomplete.git"
+  },
   "extensionKind": ["ui", "workspace"],
   "main": "./dist/extension.js",
   "activationEvents": [
@@ -128,8 +133,10 @@
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "test": "node ./out/test/runTest.js",
-    "package": "vsce package --no-dependencies"
+    "package": "pnpm exec vsce package --no-dependencies",
+    "publish": "pnpm exec vsce publish --no-dependencies"
   },
+  "packageManager": "pnpm@10.33.2",
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@stylistic/eslint-plugin": "^5.10.0",
@@ -137,6 +144,7 @@
     "@types/node": "^20.19.0",
     "@types/vscode": "^1.74.0",
     "@vscode/test-electron": "^2.5.2",
+    "@vscode/vsce": "^3.9.1",
     "esbuild": "^0.25.0",
     "eslint": "^10.5.0",
     "globals": "^17.6.0",
