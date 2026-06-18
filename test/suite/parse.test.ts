@@ -43,9 +43,24 @@ suite("sanitizeCompletion", () => {
     assert.strictEqual(out, "");
   });
 
-  test("ignores a JSON object whose text field is missing", () => {
+  test("returns empty when JSON text is missing", () => {
     const out = sanitizeCompletion('{"completion": "a + b"}', ctx(), 64);
-    assert.strictEqual(out, '{"completion": "a + b"}');
+    assert.strictEqual(out, "");
+  });
+
+  test("returns empty when response is not JSON", () => {
+    const out = sanitizeCompletion("a + b", ctx(), 64);
+    assert.strictEqual(out, "");
+  });
+
+  test("returns empty for a fenced code block that is not JSON", () => {
+    const out = sanitizeCompletion("```ts\na + b\n```", ctx(), 64);
+    assert.strictEqual(out, "");
+  });
+
+  test("returns empty when braces do not parse as JSON", () => {
+    const out = sanitizeCompletion("```json\n{not valid json}\n```", ctx(), 64);
+    assert.strictEqual(out, "");
   });
 
   test("removes an echo of the line before the cursor", () => {
@@ -68,32 +83,5 @@ suite("sanitizeCompletion", () => {
 
   test("returns empty for empty input", () => {
     assert.strictEqual(sanitizeCompletion("", ctx(), 64), "");
-  });
-
-  suite("graceful fallback (model ignores JSON mode)", () => {
-    test("passes through a plain completion", () => {
-      const out = sanitizeCompletion("a + b", ctx(), 64);
-      assert.strictEqual(out, "a + b");
-    });
-
-    test("strips a fully fenced code block", () => {
-      const out = sanitizeCompletion("```ts\na + b\n```", ctx(), 64);
-      assert.strictEqual(out, "a + b");
-    });
-
-    test("strips a fenced block without language tag", () => {
-      const out = sanitizeCompletion("```\na + b\n```", ctx(), 64);
-      assert.strictEqual(out, "a + b");
-    });
-
-    test("strips an unterminated fence", () => {
-      const out = sanitizeCompletion("```\na + b", ctx(), 64);
-      assert.strictEqual(out, "a + b");
-    });
-
-    test("falls back to fence stripping when braces do not parse as JSON", () => {
-      const out = sanitizeCompletion("```json\n{not valid json}\n```", ctx(), 64);
-      assert.strictEqual(out, "{not valid json}");
-    });
   });
 });
