@@ -19,6 +19,7 @@ const SYSTEM_PROMPT = [
   "Respond ONLY with a single JSON object and nothing else. The JSON object MUST have this shape:",
   COMPLETION_RESPONSE_EXAMPLE,
   'The "text" value must be the exact text to insert at <<<CURSOR>>>.',
+  'The "text" value must have 10 or fewer lines.',
   "Do NOT repeat code or syntax that already appears on the lines before or after <<<CURSOR>>>.",
   "Do NOT wrap the JSON in a markdown code fence and do NOT add any prose or explanation.",
   'If no completion is appropriate, respond with { "text": "" }.',
