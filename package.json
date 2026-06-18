@@ -92,6 +92,11 @@
           "minimum": 200,
           "maximum": 1000000,
           "markdownDescription": "Hard character cap on the assembled prompt prefix+suffix to avoid excessively large requests."
+        },
+        "aiAutocomplete.jsonResponse": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "Request JSON responses from the LLM. Not compatible with all providers."
         }
       }
     },

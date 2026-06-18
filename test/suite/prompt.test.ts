@@ -26,6 +26,7 @@ function cfg(): AutocompleteConfig {
     temperature: 0.2,
     requestTimeoutMs: 10000,
     maxContextChars: 8000,
+    jsonResponse: true,
   };
 }
 
@@ -77,5 +78,11 @@ suite("prompt", () => {
     assert.strictEqual(req.maxTokens, 64);
     assert.strictEqual(req.temperature, 0.2);
     assert.deepStrictEqual(req.responseFormat, { type: "json_object" });
+  });
+
+  test("buildRequest omits responseFormat when jsonResponse is disabled", () => {
+    const messages = buildMessages(ctx(), cfg());
+    const req = buildRequest(messages, { ...cfg(), jsonResponse: false }, "sk-test");
+    assert.strictEqual(req.responseFormat, undefined);
   });
 });

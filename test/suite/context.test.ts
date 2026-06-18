@@ -15,6 +15,7 @@ function cfg(overrides: Partial<AutocompleteConfig> = {}): AutocompleteConfig {
     temperature: 0.2,
     requestTimeoutMs: 10000,
     maxContextChars: 8000,
+    jsonResponse: true,
     ...overrides,
   };
 }

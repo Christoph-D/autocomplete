@@ -53,7 +53,7 @@ export interface CompletionRequest {
   maxTokens: number;
   temperature: number;
   requestTimeoutMs: number;
-  responseFormat: { type: "json_object" };
+  responseFormat?: { type: "json_object" };
 }
 
 export function buildRequest(messages: ChatMessage[], cfg: AutocompleteConfig, apiKey: string): CompletionRequest {
@@ -65,6 +65,6 @@ export function buildRequest(messages: ChatMessage[], cfg: AutocompleteConfig, a
     maxTokens: cfg.maxTokens,
     temperature: cfg.temperature,
     requestTimeoutMs: cfg.requestTimeoutMs,
-    responseFormat: { type: "json_object" },
+    ...(cfg.jsonResponse ? { responseFormat: { type: "json_object" } } : {}),
   };
 }

@@ -13,6 +13,7 @@ export interface AutocompleteConfig {
   temperature: number;
   requestTimeoutMs: number;
   maxContextChars: number;
+  jsonResponse: boolean;
 }
 
 export function readConfig(): AutocompleteConfig {
@@ -28,6 +29,7 @@ export function readConfig(): AutocompleteConfig {
     temperature: cfg.get<number>("temperature", 0.2),
     requestTimeoutMs: cfg.get<number>("requestTimeoutMs", 10000),
     maxContextChars: cfg.get<number>("maxContextChars", 10000),
+    jsonResponse: cfg.get<boolean>("jsonResponse", true),
   };
 }
 
