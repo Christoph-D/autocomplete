@@ -16,6 +16,7 @@ function cfg(overrides: Partial<AutocompleteConfig> = {}): AutocompleteConfig {
     delayMs: 0,
     maxContextChars: 8000,
     jsonResponse: true,
+    logLevel: "info",
     ...overrides,
   };
 }

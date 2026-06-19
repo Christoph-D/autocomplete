@@ -27,6 +27,7 @@ function cfg(): AutocompleteConfig {
     delayMs: 0,
     maxContextChars: 8000,
     jsonResponse: true,
+    logLevel: "info",
   };
 }
 

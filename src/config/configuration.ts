@@ -2,6 +2,8 @@ import * as vscode from "vscode";
 
 const SECTION = "aiAutocomplete";
 
+export type LogLevel = "off" | "error" | "info" | "trace";
+
 export interface AutocompleteConfig {
   enabled: boolean;
   model: string;
@@ -14,6 +16,7 @@ export interface AutocompleteConfig {
   delayMs: number;
   maxContextChars: number;
   jsonResponse: boolean;
+  logLevel: LogLevel;
 }
 
 export function readConfig(): AutocompleteConfig {
@@ -30,6 +33,7 @@ export function readConfig(): AutocompleteConfig {
     delayMs: cfg.get<number>("delayMs", 0),
     maxContextChars: cfg.get<number>("maxContextChars", 10000),
     jsonResponse: cfg.get<boolean>("jsonResponse", true),
+    logLevel: cfg.get<LogLevel>("logLevel", "info"),
   };
 }
 

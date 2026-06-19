@@ -5,11 +5,12 @@ import { buildContext } from "./context";
 import { buildMessages, buildRequest } from "./prompt";
 import { sanitizeCompletion } from "./parse";
 import { LlmError, type LlmClient } from "../llm/client";
+import type { Logger } from "../logging/logger";
 
 export interface InlineProviderDeps {
   secrets: SecretStore;
   client: LlmClient;
-  logger: vscode.OutputChannel;
+  logger: Logger;
   onError?: (err: LlmError) => void;
 }
 
@@ -60,7 +61,7 @@ export class InlineCompletionProvider implements vscode.InlineCompletionItemProv
     const ctx = buildContext(document, position, cfg);
     const messages = buildMessages(ctx, cfg);
     const userMessage = messages.find((m) => m.role === "user")?.content;
-    this.deps.logger.appendLine(`[trace] llm user message: ${JSON.stringify(userMessage)}`);
+    this.deps.logger.trace(`llm user message: ${JSON.stringify(userMessage)}`);
 
     // Bridge VS Code's cancellation token to an AbortSignal for the HTTP fetch.
     // This must stay scoped to this request: the listener is disposed in the
@@ -79,10 +80,10 @@ export class InlineCompletionProvider implements vscode.InlineCompletionItemProv
       const raw = await this.deps.client.complete(request, controller.signal);
       const elapsed = Date.now() - startedAt;
       if (token.isCancellationRequested) {
-        this.deps.logger.appendLine(`[trace] discarded superseded response (after response, ${elapsed}ms)`);
+        this.deps.logger.trace(`discarded superseded response (after response, ${elapsed}ms)`);
         return [];
       }
-      this.deps.logger.appendLine(`[trace] llm response: ${JSON.stringify(raw)} (${elapsed}ms)`);
+      this.deps.logger.trace(`llm response: ${JSON.stringify(raw)} (${elapsed}ms)`);
       const text = sanitizeCompletion(raw, ctx, cfg.maxTokens);
       return text ? [new vscode.InlineCompletionItem(text, new vscode.Range(position, position))] : [];
     } catch (err) {
@@ -90,11 +91,11 @@ export class InlineCompletionProvider implements vscode.InlineCompletionItemProv
       if (token.isCancellationRequested) {
         const phase =
           err instanceof LlmError && err.abortedBeforeFetch ? "cancelled before API call" : "cancelled during API call";
-        this.deps.logger.appendLine(`[trace] discarded superseded response (${phase}, ${elapsed}ms)`);
+        this.deps.logger.trace(`discarded superseded response (${phase}, ${elapsed}ms)`);
         return [];
       }
       const msg = err instanceof Error ? err.message : String(err);
-      this.deps.logger.appendLine(`[inline] request failed: ${msg} (${elapsed}ms)`);
+      this.deps.logger.error(`request failed: ${msg} (${elapsed}ms)`);
       if (err instanceof LlmError) {
         this.deps.onError?.(err);
       }

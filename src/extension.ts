@@ -4,6 +4,7 @@ import { readConfig, setEnabled } from "./config/configuration";
 import { createLlmClient, LlmError, type LlmClient } from "./llm/client";
 import { InlineCompletionProvider } from "./completion/inlineProvider";
 import { StatusBar, type StatusState } from "./ui/statusBar";
+import { Logger } from "./logging/logger";
 
 let provider: InlineCompletionProvider | undefined;
 let statusBar: StatusBar | undefined;
@@ -11,11 +12,13 @@ let disposable: vscode.Disposable | undefined;
 let secrets: SecretStore | undefined;
 let client: LlmClient | undefined;
 let output: vscode.OutputChannel | undefined;
+let logger: Logger | undefined;
 let lastError: { message: string; at: number } | null = null;
 
 export function activate(context: vscode.ExtensionContext): void {
   output = vscode.window.createOutputChannel("AI Autocomplete");
   context.subscriptions.push(output);
+  logger = new Logger({ channel: output, getLevel: () => readConfig().logLevel });
 
   secrets = createSecretStore(context.secrets);
   client = createLlmClient();
@@ -25,7 +28,7 @@ export function activate(context: vscode.ExtensionContext): void {
   provider = new InlineCompletionProvider({
     secrets,
     client,
-    logger: output,
+    logger,
     onError: (err: LlmError) => handleError(err),
   });
 
@@ -108,7 +111,7 @@ async function triggerCommand(): Promise<void> {
 
 function handleError(err: LlmError): void {
   lastError = { message: err.message, at: Date.now() };
-  output?.appendLine(`[error] ${err.message}`);
+  logger?.error(err.message);
   void refreshStatus();
 
   if (err.status === 401 || err.status === 403) {

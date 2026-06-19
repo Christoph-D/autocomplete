@@ -3,6 +3,7 @@ import * as vscode from "vscode";
 import { InlineCompletionProvider } from "../../src/completion/inlineProvider";
 import { LlmError, type LlmClient } from "../../src/llm/client";
 import type { SecretStore } from "../../src/config/secrets";
+import { Logger } from "../../src/logging/logger";
 
 function makeSecrets(key = "sk-test"): SecretStore {
   return {
@@ -17,7 +18,7 @@ function makeSecrets(key = "sk-test"): SecretStore {
   };
 }
 
-function makeLogger(): { channel: vscode.OutputChannel; lines: string[] } {
+function makeLogger(): { logger: Logger; lines: string[] } {
   const lines: string[] = [];
   const channel = {
     appendLine(value: string) {
@@ -30,7 +31,8 @@ function makeLogger(): { channel: vscode.OutputChannel; lines: string[] } {
     hide() {},
     dispose() {},
   } as unknown as vscode.OutputChannel;
-  return { channel, lines };
+  const logger = new Logger({ channel, getLevel: () => "trace" });
+  return { logger, lines };
 }
 
 function recordingClient(): { client: LlmClient; awaitCalled: Promise<AbortSignal> } {
@@ -113,11 +115,11 @@ const CTX = {} as vscode.InlineCompletionContext;
 
 suite("InlineCompletionProvider", () => {
   test("resolves with a completion item when the LLM responds", async () => {
-    const { channel, lines } = makeLogger();
+    const { logger, lines } = makeLogger();
     const provider = new InlineCompletionProvider({
       secrets: makeSecrets(),
       client: immediateClient('{ "text": "(n int) bool {\\n\\treturn n % 2 == 1\\n}" }'),
-      logger: channel,
+      logger,
     });
     const { doc, position } = await openGoDoc();
     const token = new vscode.CancellationTokenSource();
@@ -134,12 +136,12 @@ suite("InlineCompletionProvider", () => {
   });
 
   test("aborts the in-flight fetch when VS Code cancels the token", async () => {
-    const { channel, lines } = makeLogger();
+    const { logger, lines } = makeLogger();
     const rec = recordingClient();
     const provider = new InlineCompletionProvider({
       secrets: makeSecrets(),
       client: rec.client,
-      logger: channel,
+      logger,
     });
     const { doc, position } = await openGoDoc();
     const token = new vscode.CancellationTokenSource();
@@ -161,13 +163,13 @@ suite("InlineCompletionProvider", () => {
   });
 
   test("discards a response that lands after the token is cancelled", async () => {
-    const { channel, lines } = makeLogger();
+    const { logger, lines } = makeLogger();
     const content = '{ "text": "(n int) bool {\\n\\treturn n % 2 == 1\\n}" }';
     const rec = lateResponseClient(content);
     const provider = new InlineCompletionProvider({
       secrets: makeSecrets(),
       client: rec.client,
-      logger: channel,
+      logger,
     });
     const { doc, position } = await openGoDoc();
     const token = new vscode.CancellationTokenSource();
@@ -187,12 +189,12 @@ suite("InlineCompletionProvider", () => {
   });
 
   test("labels a discard as 'cancelled before API call' when aborted during the delay", async () => {
-    const { channel, lines } = makeLogger();
+    const { logger, lines } = makeLogger();
     const rec = delayAbortClient();
     const provider = new InlineCompletionProvider({
       secrets: makeSecrets(),
       client: rec.client,
-      logger: channel,
+      logger,
     });
     const { doc, position } = await openGoDoc();
     const token = new vscode.CancellationTokenSource();
@@ -213,12 +215,12 @@ suite("InlineCompletionProvider", () => {
   });
 
   test("surfaces backend errors via onError and resolves with []", async () => {
-    const { channel, lines } = makeLogger();
+    const { logger, lines } = makeLogger();
     let reported: LlmError | undefined;
     const provider = new InlineCompletionProvider({
       secrets: makeSecrets(),
       client: errorClient(new LlmError("LLM request failed: 429 Too Many Requests", 429)),
-      logger: channel,
+      logger,
       onError: (err) => {
         reported = err;
       },

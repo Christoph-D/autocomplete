@@ -97,6 +97,17 @@
           "type": "boolean",
           "default": true,
           "markdownDescription": "Request JSON responses from the LLM. Not compatible with all providers."
+        },
+        "aiAutocomplete.logLevel": {
+          "type": "string",
+          "enum": [
+            "off",
+            "error",
+            "info",
+            "trace"
+          ],
+          "default": "info",
+          "markdownDescription": "Verbosity of the \"AI Autocomplete\" output channel. `error` shows only failures; `info` is the default and hides verbose output; `trace` logs the full prompt and raw LLM response for every request; `off` silences everything."
         }
       }
     },
