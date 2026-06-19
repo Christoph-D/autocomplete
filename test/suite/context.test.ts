@@ -2,21 +2,15 @@ import * as assert from "assert";
 import * as vscode from "vscode";
 import { buildContext } from "../../src/completion/context";
 import type { AutocompleteConfig } from "../../src/config/configuration";
+import { DEFAULT_CONFIG } from "../../src/config/constants";
 
 function cfg(overrides: Partial<AutocompleteConfig> = {}): AutocompleteConfig {
   return {
-    enabled: true,
+    ...DEFAULT_CONFIG,
     model: "example-model",
-    apiBaseUrl: "https://example.com/v1",
-    maxContextLinesBefore: 100,
-    maxContextLinesAfter: 50,
     maxTokens: 64,
-    temperature: 0.2,
-    requestTimeoutMs: 10000,
     delayMs: 0,
     maxContextChars: 8000,
-    jsonResponse: true,
-    logLevel: "info",
     ...overrides,
   };
 }

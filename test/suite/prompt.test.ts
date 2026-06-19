@@ -2,6 +2,7 @@ import * as assert from "assert";
 import { buildMessages, buildRequest } from "../../src/completion/prompt";
 import type { CursorContext } from "../../src/completion/context";
 import type { AutocompleteConfig } from "../../src/config/configuration";
+import { DEFAULT_CONFIG } from "../../src/config/constants";
 
 function ctx(): CursorContext {
   return {
@@ -16,18 +17,11 @@ function ctx(): CursorContext {
 
 function cfg(): AutocompleteConfig {
   return {
-    enabled: true,
+    ...DEFAULT_CONFIG,
     model: "example-model",
-    apiBaseUrl: "https://example.com/v1",
-    maxContextLinesBefore: 100,
-    maxContextLinesAfter: 50,
     maxTokens: 64,
-    temperature: 0.2,
-    requestTimeoutMs: 10000,
     delayMs: 0,
     maxContextChars: 8000,
-    jsonResponse: true,
-    logLevel: "info",
   };
 }
 

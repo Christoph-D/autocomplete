@@ -1,4 +1,5 @@
 import * as vscode from "vscode";
+import { DEFAULT_CONFIG } from "./constants";
 
 const SECTION = "aiAutocomplete";
 
@@ -22,18 +23,18 @@ export interface AutocompleteConfig {
 export function readConfig(): AutocompleteConfig {
   const cfg = vscode.workspace.getConfiguration(SECTION);
   return {
-    enabled: cfg.get<boolean>("enabled", true),
-    model: cfg.get<string>("model", ""),
-    apiBaseUrl: cfg.get<string>("apiBaseUrl", ""),
-    maxContextLinesBefore: cfg.get<number>("maxContextLinesBefore", 100),
-    maxContextLinesAfter: cfg.get<number>("maxContextLinesAfter", 50),
-    maxTokens: cfg.get<number>("maxTokens", 200),
-    temperature: cfg.get<number>("temperature", 0.2),
-    requestTimeoutMs: cfg.get<number>("requestTimeoutMs", 10000),
-    delayMs: cfg.get<number>("delayMs", 0),
-    maxContextChars: cfg.get<number>("maxContextChars", 10000),
-    jsonResponse: cfg.get<boolean>("jsonResponse", true),
-    logLevel: cfg.get<LogLevel>("logLevel", "info"),
+    enabled: cfg.get<boolean>("enabled", DEFAULT_CONFIG.enabled),
+    model: cfg.get<string>("model", DEFAULT_CONFIG.model),
+    apiBaseUrl: cfg.get<string>("apiBaseUrl", DEFAULT_CONFIG.apiBaseUrl),
+    maxContextLinesBefore: cfg.get<number>("maxContextLinesBefore", DEFAULT_CONFIG.maxContextLinesBefore),
+    maxContextLinesAfter: cfg.get<number>("maxContextLinesAfter", DEFAULT_CONFIG.maxContextLinesAfter),
+    maxTokens: cfg.get<number>("maxTokens", DEFAULT_CONFIG.maxTokens),
+    temperature: cfg.get<number>("temperature", DEFAULT_CONFIG.temperature),
+    requestTimeoutMs: cfg.get<number>("requestTimeoutMs", DEFAULT_CONFIG.requestTimeoutMs),
+    delayMs: cfg.get<number>("delayMs", DEFAULT_CONFIG.delayMs),
+    maxContextChars: cfg.get<number>("maxContextChars", DEFAULT_CONFIG.maxContextChars),
+    jsonResponse: cfg.get<boolean>("jsonResponse", DEFAULT_CONFIG.jsonResponse),
+    logLevel: cfg.get<LogLevel>("logLevel", DEFAULT_CONFIG.logLevel),
   };
 }
 
