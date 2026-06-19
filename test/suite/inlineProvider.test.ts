@@ -112,6 +112,19 @@ async function openGoDoc(): Promise<{ doc: vscode.TextDocument; position: vscode
 }
 
 const CTX = {} as vscode.InlineCompletionContext;
+const AUTO_CTX = { triggerKind: vscode.InlineCompletionTriggerKind.Automatic } as vscode.InlineCompletionContext;
+const INVOKE_CTX = { triggerKind: vscode.InlineCompletionTriggerKind.Invoke } as vscode.InlineCompletionContext;
+
+async function withEnabled(value: boolean, fn: () => Promise<void>): Promise<void> {
+  const cfg = vscode.workspace.getConfiguration("aiAutocomplete");
+  const original = cfg.get<boolean>("enabled", true);
+  await cfg.update("enabled", value, vscode.ConfigurationTarget.Global);
+  try {
+    await fn();
+  } finally {
+    await cfg.update("enabled", original, vscode.ConfigurationTarget.Global);
+  }
+}
 
 suite("InlineCompletionProvider", () => {
   test("resolves with a completion item when the LLM responds", async () => {
@@ -239,5 +252,48 @@ suite("InlineCompletionProvider", () => {
       provider.dispose();
       token.dispose();
     }
+  });
+
+  test("returns no completion when disabled and trigger is automatic", async () => {
+    await withEnabled(false, async () => {
+      const { logger } = makeLogger();
+      const provider = new InlineCompletionProvider({
+        secrets: makeSecrets(),
+        client: immediateClient('{ "text": "should not be used" }'),
+        logger,
+      });
+      provider.refreshConfig();
+      const { doc, position } = await openGoDoc();
+      const token = new vscode.CancellationTokenSource();
+      try {
+        const items = await provider.provideInlineCompletionItems(doc, position, AUTO_CTX, token.token);
+        assert.deepStrictEqual(items, []);
+      } finally {
+        provider.dispose();
+        token.dispose();
+      }
+    });
+  });
+
+  test("still completes when disabled if triggered manually (Invoke)", async () => {
+    await withEnabled(false, async () => {
+      const { logger } = makeLogger();
+      const provider = new InlineCompletionProvider({
+        secrets: makeSecrets(),
+        client: immediateClient('{ "text": "(n int) bool {\\n\\treturn n % 2 == 1\\n}" }'),
+        logger,
+      });
+      provider.refreshConfig();
+      const { doc, position } = await openGoDoc();
+      const token = new vscode.CancellationTokenSource();
+      try {
+        const items = await provider.provideInlineCompletionItems(doc, position, INVOKE_CTX, token.token);
+        assert.strictEqual(items.length, 1);
+        assert.match(items[0].insertText as string, /return n % 2 == 1/);
+      } finally {
+        provider.dispose();
+        token.dispose();
+      }
+    });
   });
 });

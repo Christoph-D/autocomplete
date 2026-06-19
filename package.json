@@ -32,7 +32,7 @@
         "aiAutocomplete.enabled": {
           "type": "boolean",
           "default": true,
-          "markdownDescription": "Enable inline AI autocompletion."
+          "markdownDescription": "Enable automatic inline AI autocompletion. When disabled, manual trigger still works."
         },
         "aiAutocomplete.model": {
           "type": "string",

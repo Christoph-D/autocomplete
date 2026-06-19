@@ -36,11 +36,11 @@ export class InlineCompletionProvider implements vscode.InlineCompletionItemProv
   async provideInlineCompletionItems(
     document: vscode.TextDocument,
     position: vscode.Position,
-    _context: vscode.InlineCompletionContext,
+    context: vscode.InlineCompletionContext,
     token: vscode.CancellationToken,
   ): Promise<vscode.InlineCompletionItem[]> {
     const cfg = this.cachedConfig;
-    if (!cfg.enabled) {
+    if (!cfg.enabled && context.triggerKind !== vscode.InlineCompletionTriggerKind.Invoke) {
       return [];
     }
     if (document.uri.scheme !== "file" && document.uri.scheme !== "untitled") {
