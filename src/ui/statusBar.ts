@@ -2,6 +2,7 @@ import * as vscode from "vscode";
 
 export type StatusState =
   | { kind: "disabled" }
+  | { kind: "misconfigured" }
   | { kind: "no-key" }
   | { kind: "ready"; model: string }
   | { kind: "working" }
@@ -22,6 +23,15 @@ export class StatusBar {
         this.item.text = "$(circle-slash) AI: off";
         this.item.tooltip = "AI Autocomplete is disabled";
         this.item.command = "aiAutocomplete.toggleEnabled";
+        break;
+      case "misconfigured":
+        this.item.text = "$(warning) AI: setup";
+        this.item.tooltip = "AI Autocomplete is not configured — set a model and API base URL";
+        this.item.command = {
+          title: "Open Settings",
+          command: "workbench.action.openSettings",
+          arguments: ["aiAutocomplete"],
+        };
         break;
       case "no-key":
         this.item.text = "$(key) AI: set key";

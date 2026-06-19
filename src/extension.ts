@@ -1,6 +1,7 @@
 import * as vscode from "vscode";
 import { createSecretStore, type SecretStore } from "./config/secrets";
 import { readConfig, setEnabled } from "./config/configuration";
+import { DEFAULT_CONFIG } from "./config/constants";
 import { createLlmClient, LlmError, type LlmClient } from "./llm/client";
 import { InlineCompletionProvider } from "./completion/inlineProvider";
 import { StatusBar, type StatusState } from "./ui/statusBar";
@@ -62,6 +63,10 @@ async function refreshStatus(): Promise<void> {
   const cfg = readConfig();
   if (!cfg.enabled) {
     statusBar?.update({ kind: "disabled" });
+    return;
+  }
+  if (!cfg.model || !cfg.apiBaseUrl || cfg.apiBaseUrl === DEFAULT_CONFIG.apiBaseUrl) {
+    statusBar?.update({ kind: "misconfigured" });
     return;
   }
   if (secrets && !(await secrets.hasApiKey())) {
