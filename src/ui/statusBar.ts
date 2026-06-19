@@ -5,7 +5,6 @@ export type StatusState =
   | { kind: "misconfigured" }
   | { kind: "no-key" }
   | { kind: "ready"; model: string }
-  | { kind: "working" }
   | { kind: "error"; message: string };
 
 export class StatusBar {
@@ -42,11 +41,6 @@ export class StatusBar {
         this.item.text = `$(sparkle) AI: ${state.model}`;
         this.item.tooltip = `AI Autocomplete using ${state.model}`;
         this.item.command = "aiAutocomplete.toggleEnabled";
-        break;
-      case "working":
-        this.item.text = "$(loading~spin) AI: thinking…";
-        this.item.tooltip = "Awaiting completion";
-        this.item.command = undefined;
         break;
       case "error":
         this.item.text = `$(error) AI: ${truncate(state.message, 18)}`;
