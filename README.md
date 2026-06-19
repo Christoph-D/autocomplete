@@ -12,7 +12,8 @@ Works with any OpenAI-compatible provider. You bring your own API key.
    - `aiAutocomplete.apiBaseUrl` — e.g. `https://api.mistral.ai/v1`
    - `aiAutocomplete.model` — e.g. `codestral-latest`
 2. Run **AI Autocomplete: Set API Key** from the command palette (Ctrl+Shift+P or Cmd+Shift+P)
-3. Start typing. Completions appear as ghost text; `Tab` to accept. Use `Alt+\` to trigger manually.
+3. Start typing. Completions appear as ghost text; `Tab` to accept. Use `Ctrl+Alt+Space` (mac: `Cmd+Alt+Space`) to
+   trigger manually.
 
 ## Essential settings
 

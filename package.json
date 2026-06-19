@@ -136,8 +136,8 @@
     "keybindings": [
       {
         "command": "aiAutocomplete.trigger",
-        "key": "alt+\\",
-        "mac": "alt+\\",
+        "key": "ctrl+alt+space",
+        "mac": "cmd+alt+space",
         "when": "editorTextFocus"
       }
     ]
