@@ -6,10 +6,12 @@ import {
   isCustomProvider,
   presetDisableThinking,
   presetJsonResponse,
+  presetTemperature,
   resolveBaseUrl,
   resolveDisableThinking,
   resolveJsonResponse,
   resolveModel,
+  resolveTemperature,
 } from "./providers";
 
 const SECTION = "aiAutocomplete";
@@ -17,6 +19,7 @@ const SECTION = "aiAutocomplete";
 export type LogLevel = "off" | "error" | "info" | "trace";
 
 export interface ModelOverride {
+  temperature?: number;
   jsonResponse?: boolean;
   disableThinking?: boolean;
 }
@@ -26,8 +29,8 @@ export type ModelOverrides = Record<string, ModelOverride>;
 /**
  * A provider entry in `aiAutocomplete.backend.providers`. Only deviations from
  * the provider's preset belong here (the custom provider, which has no preset,
- * always stores its base URL/active model). `jsonResponse` / `disableThinking`
- * overrides are per-model under `models`.
+ * always stores its base URL/active model). `temperature` / `jsonResponse` /
+ * `disableThinking` overrides are per-model under `models`.
  */
 export interface ProviderEntry {
   baseUrl?: string;
@@ -57,7 +60,6 @@ export interface UserFacingDefaults {
   maxContextLinesBefore: number;
   maxContextLinesAfter: number;
   maxTokens: number;
-  temperature: number;
   requestTimeoutMs: number;
   delayMs: number;
   maxContextChars: number;
@@ -68,6 +70,7 @@ export interface AutocompleteConfig extends UserFacingDefaults {
   provider: string;
   model: string;
   apiBaseUrl: string;
+  temperature: number;
   jsonResponse: boolean;
   disableThinking: boolean;
 }
@@ -88,10 +91,10 @@ export function readConfig(): AutocompleteConfig {
     maxContextLinesBefore: cfg.get<number>("maxContextLinesBefore", DEFAULT_CONFIG.maxContextLinesBefore),
     maxContextLinesAfter: cfg.get<number>("maxContextLinesAfter", DEFAULT_CONFIG.maxContextLinesAfter),
     maxTokens: cfg.get<number>("maxTokens", DEFAULT_CONFIG.maxTokens),
-    temperature: cfg.get<number>("temperature", DEFAULT_CONFIG.temperature),
     requestTimeoutMs: cfg.get<number>("requestTimeoutMs", DEFAULT_CONFIG.requestTimeoutMs),
     delayMs: cfg.get<number>("delayMs", DEFAULT_CONFIG.delayMs),
     maxContextChars: cfg.get<number>("maxContextChars", DEFAULT_CONFIG.maxContextChars),
+    temperature: resolveTemperature(provider, model, modelOverride?.temperature),
     jsonResponse: resolveJsonResponse(provider, model, modelOverride?.jsonResponse),
     disableThinking: resolveDisableThinking(provider, model, modelOverride?.disableThinking),
     logLevel: cfg.get<LogLevel>("logLevel", DEFAULT_CONFIG.logLevel),
@@ -175,10 +178,11 @@ function normalizeProvider(id: string | undefined): string {
 /**
  * Parse raw provider entries and keep only genuine overrides: any
  * `baseUrl`/`activeModel` that matches the provider's preset is dropped, as are
- * `jsonResponse`/`disableThinking` values that match their effective (per-model
- * then per-provider) preset default, empty model/entry objects, and malformed
- * entries. This is the single chokepoint that guarantees the setting never
- * persists redundant (non-override) data — including hand-edited input.
+ * `temperature`/`jsonResponse`/`disableThinking` values that match their
+ * effective (per-model then per-provider) preset default, empty model/entry
+ * objects, and malformed entries. This is the single chokepoint that guarantees
+ * the setting never persists redundant (non-override) data — including
+ * hand-edited input.
  */
 export function normalizeBackendProviders(raw: unknown): ProviderEntries {
   if (!isPlainObject(raw)) {
@@ -220,6 +224,10 @@ function normalizeModelOverrides(providerKey: string, raw: unknown): ModelOverri
       continue;
     }
     const mo: ModelOverride = {};
+    const temperature = modelValue.temperature;
+    if (typeof temperature === "number" && presetTemperature(preset, modelKey) !== temperature) {
+      mo.temperature = temperature;
+    }
     const jsonResponse = modelValue.jsonResponse;
     if (typeof jsonResponse === "boolean" && presetJsonResponse(preset, modelKey) !== jsonResponse) {
       mo.jsonResponse = jsonResponse;

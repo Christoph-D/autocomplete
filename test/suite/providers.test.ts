@@ -6,10 +6,12 @@ import {
   isCustomProvider,
   presetDisableThinking,
   presetJsonResponse,
+  presetTemperature,
   resolveBaseUrl,
   resolveDisableThinking,
   resolveJsonResponse,
   resolveModel,
+  resolveTemperature,
   type ProviderPreset,
 } from "../../src/config/providers";
 
@@ -19,6 +21,7 @@ function preset(over: Partial<ProviderPreset> = {}): ProviderPreset {
     label: "Test",
     baseUrl: "",
     defaultModel: "",
+    defaultTemperature: 0.2,
     defaultJsonResponse: true,
     defaultDisableThinking: false,
     ...over,
@@ -73,6 +76,12 @@ suite("provider catalog", () => {
     assert.strictEqual(resolveModel(CUSTOM_PROVIDER_ID, undefined), "");
   });
 
+  test("every preset defaults temperature to 0.2", () => {
+    for (const p of PROVIDERS) {
+      assert.strictEqual(p.defaultTemperature, 0.2, `${p.id} should default temperature to 0.2`);
+    }
+  });
+
   test("every preset defaults jsonResponse to true", () => {
     for (const p of PROVIDERS) {
       assert.strictEqual(p.defaultJsonResponse, true, `${p.id} should default jsonResponse to true`);
@@ -87,8 +96,10 @@ suite("provider catalog", () => {
   });
 });
 
-suite("presetJsonResponse / presetDisableThinking", () => {
+suite("presetTemperature / presetJsonResponse / presetDisableThinking", () => {
   test("falls back to the provider-level default when no per-model entry exists", () => {
+    assert.strictEqual(presetTemperature(preset({ defaultTemperature: 0.2 }), "any"), 0.2);
+    assert.strictEqual(presetTemperature(preset({ defaultTemperature: 0.7 }), "any"), 0.7);
     assert.strictEqual(presetJsonResponse(preset({ defaultJsonResponse: true }), "any"), true);
     assert.strictEqual(presetJsonResponse(preset({ defaultJsonResponse: false }), "any"), false);
     assert.strictEqual(presetDisableThinking(preset({ defaultDisableThinking: true }), "any"), true);
@@ -97,46 +108,55 @@ suite("presetJsonResponse / presetDisableThinking", () => {
 
   test("a per-model preset default overrides the provider-level default", () => {
     const p = preset({
+      defaultTemperature: 0.2,
       defaultJsonResponse: true,
       defaultDisableThinking: false,
       models: {
-        "reasoning-model": { jsonResponse: false, disableThinking: true },
+        "reasoning-model": { temperature: 0.6, jsonResponse: false, disableThinking: true },
       },
     });
+    assert.strictEqual(presetTemperature(p, "reasoning-model"), 0.6);
     assert.strictEqual(presetJsonResponse(p, "reasoning-model"), false);
     assert.strictEqual(presetDisableThinking(p, "reasoning-model"), true);
+    assert.strictEqual(presetTemperature(p, "other"), 0.2);
     assert.strictEqual(presetJsonResponse(p, "other"), true);
     assert.strictEqual(presetDisableThinking(p, "other"), false);
   });
 
   test("a partial per-model entry only overrides the fields it sets", () => {
     const p = preset({
+      defaultTemperature: 0.2,
       defaultJsonResponse: true,
       defaultDisableThinking: false,
       models: { m: { disableThinking: true } },
     });
+    assert.strictEqual(presetTemperature(p, "m"), 0.2);
     assert.strictEqual(presetJsonResponse(p, "m"), true);
     assert.strictEqual(presetDisableThinking(p, "m"), true);
   });
 
   test("returns the global fallback for an unknown preset", () => {
+    assert.strictEqual(presetTemperature(undefined, "m"), 0.2);
     assert.strictEqual(presetJsonResponse(undefined, "m"), true);
     assert.strictEqual(presetDisableThinking(undefined, "m"), false);
   });
 
   test("ignores the model id when it is undefined", () => {
     const p = preset({
+      defaultTemperature: 0.5,
       defaultJsonResponse: false,
       defaultDisableThinking: true,
       models: { m: { jsonResponse: true } },
     });
+    assert.strictEqual(presetTemperature(p, undefined), 0.5);
     assert.strictEqual(presetJsonResponse(p, undefined), false);
     assert.strictEqual(presetDisableThinking(p, undefined), true);
   });
 });
 
-suite("resolveJsonResponse / resolveDisableThinking", () => {
+suite("resolveTemperature / resolveJsonResponse / resolveDisableThinking", () => {
   test("a stored override wins over preset and per-model defaults", () => {
+    assert.strictEqual(resolveTemperature("zai", "glm-5.2", 0.7), 0.7);
     assert.strictEqual(resolveJsonResponse("zai", "glm-5.2", false), false);
     assert.strictEqual(resolveJsonResponse("zai", "glm-5.2", true), true);
     assert.strictEqual(resolveDisableThinking("zai", "glm-5.2", false), false);
@@ -144,6 +164,8 @@ suite("resolveJsonResponse / resolveDisableThinking", () => {
   });
 
   test("falls back to the provider-level preset default", () => {
+    assert.strictEqual(resolveTemperature("zai", undefined, undefined), 0.2);
+    assert.strictEqual(resolveTemperature("zai", "glm-5.2", undefined), 0.2);
     assert.strictEqual(resolveJsonResponse("zai", undefined, undefined), true);
     assert.strictEqual(resolveJsonResponse("zai", "glm-5.2", undefined), true);
     assert.strictEqual(resolveDisableThinking("zai", undefined, undefined), true);
@@ -152,6 +174,8 @@ suite("resolveJsonResponse / resolveDisableThinking", () => {
     assert.strictEqual(resolveDisableThinking("mistral", undefined, undefined), false);
     assert.strictEqual(resolveJsonResponse(CUSTOM_PROVIDER_ID, undefined, undefined), true);
     assert.strictEqual(resolveDisableThinking(CUSTOM_PROVIDER_ID, undefined, undefined), false);
+    assert.strictEqual(resolveTemperature(CUSTOM_PROVIDER_ID, undefined, undefined), 0.2);
+    assert.strictEqual(resolveTemperature("unknown", undefined, undefined), 0.2);
     assert.strictEqual(resolveJsonResponse("unknown", undefined, undefined), true);
     assert.strictEqual(resolveDisableThinking("unknown", undefined, undefined), false);
   });
@@ -160,8 +184,10 @@ suite("resolveJsonResponse / resolveDisableThinking", () => {
     const zai = getProvider("zai")!;
     const withModelDefault: ProviderPreset = {
       ...zai,
-      models: { "glm-4.6": { disableThinking: false } },
+      models: { "glm-4.6": { temperature: 0.4, disableThinking: false } },
     };
+    assert.strictEqual(presetTemperature(withModelDefault, "glm-4.6"), 0.4);
+    assert.strictEqual(presetTemperature(withModelDefault, "glm-5.2"), 0.2);
     assert.strictEqual(presetDisableThinking(withModelDefault, "glm-4.6"), false);
     assert.strictEqual(presetDisableThinking(withModelDefault, "glm-5.2"), true);
   });

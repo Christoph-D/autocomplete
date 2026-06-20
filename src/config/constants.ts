@@ -8,9 +8,9 @@ import type { UserFacingDefaults } from "./configuration";
  * at runtime, so these values are the effective fallbacks for `cfg.get()`.
  *
  * Only user-facing fields with a static default live here. The derived fields
- * (`provider`, `model`, `apiBaseUrl`, `jsonResponse`, `disableThinking`) are
- * computed by `readConfig` from the active provider and its backend entry, so
- * they have no static default.
+ * (`provider`, `model`, `apiBaseUrl`, `temperature`, `jsonResponse`,
+ * `disableThinking`) are computed by `readConfig` from the active provider and
+ * its backend entry, so they have no static default.
  */
 export const DEFAULT_CONFIG: Readonly<UserFacingDefaults> = {
   enabled: true,
@@ -18,7 +18,6 @@ export const DEFAULT_CONFIG: Readonly<UserFacingDefaults> = {
   maxContextLinesBefore: 100,
   maxContextLinesAfter: 50,
   maxTokens: 100,
-  temperature: 0.2,
   requestTimeoutMs: 10000,
   delayMs: 500,
   maxContextChars: 10000,

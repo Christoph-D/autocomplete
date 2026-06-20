@@ -21,6 +21,7 @@ function cfg(): AutocompleteConfig {
     provider: "custom",
     model: "example-model",
     apiBaseUrl: "https://example.com/v1",
+    temperature: 0.2,
     jsonResponse: true,
     disableThinking: false,
     maxTokens: 64,

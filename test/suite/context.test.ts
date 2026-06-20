@@ -10,6 +10,7 @@ function cfg(overrides: Partial<AutocompleteConfig> = {}): AutocompleteConfig {
     provider: "custom",
     model: "example-model",
     apiBaseUrl: "",
+    temperature: 0.2,
     jsonResponse: true,
     disableThinking: false,
     maxTokens: 64,
