@@ -4,6 +4,8 @@ import {
   CUSTOM_PROVIDER_ID,
   getProvider,
   isCustomProvider,
+  presetDisableThinking,
+  presetJsonResponse,
   resolveBaseUrl,
   resolveDisableThinking,
   resolveJsonResponse,
@@ -14,24 +16,34 @@ const SECTION = "aiAutocomplete";
 
 export type LogLevel = "off" | "error" | "info" | "trace";
 
-export interface ProviderProfile {
-  baseUrl?: string;
-  model?: string;
+export interface ModelOverride {
   jsonResponse?: boolean;
   disableThinking?: boolean;
 }
 
-export type ProviderProfiles = Record<string, ProviderProfile>;
+export type ModelOverrides = Record<string, ModelOverride>;
 
 /**
- * The `aiAutocomplete.providers` setting: the active provider id plus the
- * remembered per-provider overrides. Only deviations from a provider's preset
- * belong in `profiles` (the custom provider, which has no preset, always
- * stores its base URL/model).
+ * A provider entry in `aiAutocomplete.backend.providers`. Only deviations from
+ * the provider's preset belong here (the custom provider, which has no preset,
+ * always stores its base URL/active model). `jsonResponse` / `disableThinking`
+ * overrides are per-model under `models`.
  */
-export interface ProvidersSetting {
+export interface ProviderEntry {
+  baseUrl?: string;
+  activeModel?: string;
+  models?: ModelOverrides;
+}
+
+export type ProviderEntries = Record<string, ProviderEntry>;
+
+/**
+ * The `aiAutocomplete.backend` setting: the active provider id plus the
+ * remembered per-provider entries.
+ */
+export interface BackendSetting {
   activeProvider: string;
-  profiles: ProviderProfiles;
+  providers: ProviderEntries;
 }
 
 export interface AutocompleteConfig {
@@ -39,7 +51,7 @@ export interface AutocompleteConfig {
   provider: string;
   model: string;
   apiBaseUrl: string;
-  providers: ProvidersSetting;
+  backend: BackendSetting;
   maxContextLinesBefore: number;
   maxContextLinesAfter: number;
   maxTokens: number;
@@ -54,15 +66,17 @@ export interface AutocompleteConfig {
 
 export function readConfig(): AutocompleteConfig {
   const cfg = vscode.workspace.getConfiguration(SECTION);
-  const providers = readProvidersSetting(cfg);
-  const provider = normalizeProvider(providers.activeProvider);
-  const profile = providers.profiles[provider];
+  const backend = readBackendSetting(cfg);
+  const provider = normalizeProvider(backend.activeProvider);
+  const entry = backend.providers[provider];
+  const model = resolveModel(provider, entry?.activeModel);
+  const modelOverride = entry?.models?.[model];
   return {
     enabled: cfg.get<boolean>("enabled", DEFAULT_CONFIG.enabled),
     provider,
-    model: resolveModel(provider, profile?.model),
-    apiBaseUrl: resolveBaseUrl(provider, profile?.baseUrl),
-    providers,
+    model,
+    apiBaseUrl: resolveBaseUrl(provider, entry?.baseUrl),
+    backend,
     maxContextLinesBefore: cfg.get<number>("maxContextLinesBefore", DEFAULT_CONFIG.maxContextLinesBefore),
     maxContextLinesAfter: cfg.get<number>("maxContextLinesAfter", DEFAULT_CONFIG.maxContextLinesAfter),
     maxTokens: cfg.get<number>("maxTokens", DEFAULT_CONFIG.maxTokens),
@@ -70,8 +84,8 @@ export function readConfig(): AutocompleteConfig {
     requestTimeoutMs: cfg.get<number>("requestTimeoutMs", DEFAULT_CONFIG.requestTimeoutMs),
     delayMs: cfg.get<number>("delayMs", DEFAULT_CONFIG.delayMs),
     maxContextChars: cfg.get<number>("maxContextChars", DEFAULT_CONFIG.maxContextChars),
-    jsonResponse: resolveJsonResponse(provider, profile?.jsonResponse),
-    disableThinking: resolveDisableThinking(provider, profile?.disableThinking),
+    jsonResponse: resolveJsonResponse(provider, model, modelOverride?.jsonResponse),
+    disableThinking: resolveDisableThinking(provider, model, modelOverride?.disableThinking),
     logLevel: cfg.get<LogLevel>("logLevel", DEFAULT_CONFIG.logLevel),
   };
 }
@@ -81,8 +95,8 @@ export async function setEnabled(value: boolean): Promise<void> {
 }
 
 /**
- * Activate `providerId` as the current provider. Per-provider overrides live
- * in `providers.profiles` (the single source of truth for model/base URL), so
+ * Activate `providerId` as the current provider. Per-provider overrides live in
+ * `backend.providers` (the single source of truth for model/base URL), so
  * switching only needs to update the active provider id.
  *
  * Returns the provider that is now active so callers can drive follow-up prompts.
@@ -90,22 +104,23 @@ export async function setEnabled(value: boolean): Promise<void> {
 export async function switchProvider(providerId: string): Promise<string> {
   const target = normalizeProvider(providerId);
   const cfg = vscode.workspace.getConfiguration(SECTION);
-  const setting = readProvidersSetting(cfg);
-  await cfg.update("providers", { ...setting, activeProvider: target }, vscode.ConfigurationTarget.Global);
+  const setting = readBackendSetting(cfg);
+  await cfg.update("backend", { ...setting, activeProvider: target }, vscode.ConfigurationTarget.Global);
   return target;
 }
 
 /**
- * Remember `model` for `providerId`, storing it as a profile override unless it
- * matches the provider's preset default (in which case the override is dropped).
+ * Remember `model` as the active model for `providerId`, storing it as an
+ * override unless it matches the provider's preset default (in which case the
+ * override is dropped).
  */
 export async function setProviderModel(providerId: string, model: string): Promise<void> {
   const cfg = vscode.workspace.getConfiguration(SECTION);
-  const setting = readProvidersSetting(cfg);
+  const setting = readBackendSetting(cfg);
   const id = normalizeProvider(providerId);
   const value = model === getProvider(id)?.defaultModel ? undefined : model;
-  setProfileField(setting.profiles, id, "model", value);
-  await cfg.update("providers", setting, vscode.ConfigurationTarget.Global);
+  setEntryField(setting.providers, id, "activeModel", value);
+  await cfg.update("backend", setting, vscode.ConfigurationTarget.Global);
 }
 
 /**
@@ -114,27 +129,35 @@ export async function setProviderModel(providerId: string, model: string): Promi
  */
 export async function setProviderBaseUrl(providerId: string, baseUrl: string): Promise<void> {
   const cfg = vscode.workspace.getConfiguration(SECTION);
-  const setting = readProvidersSetting(cfg);
+  const setting = readBackendSetting(cfg);
   const id = normalizeProvider(providerId);
   const value = isCustomProvider(id) ? baseUrl : baseUrl === getProvider(id)?.baseUrl ? undefined : baseUrl;
-  setProfileField(setting.profiles, id, "baseUrl", value);
-  await cfg.update("providers", setting, vscode.ConfigurationTarget.Global);
+  setEntryField(setting.providers, id, "baseUrl", value);
+  await cfg.update("backend", setting, vscode.ConfigurationTarget.Global);
 }
 
-function setProfileField(
-  profiles: ProviderProfiles,
+function setEntryField(
+  entries: ProviderEntries,
   id: string,
-  key: "model" | "baseUrl",
+  key: "activeModel" | "baseUrl",
   value: string | undefined,
 ): void {
   if (value) {
-    profiles[id] = { ...profiles[id], [key]: value };
-  } else if (profiles[id]) {
-    delete profiles[id][key];
-    if (Object.keys(profiles[id]).length === 0) {
-      delete profiles[id];
+    entries[id] = { ...entries[id], [key]: value };
+  } else if (entries[id]) {
+    delete entries[id][key];
+    if (isEmptyEntry(entries[id])) {
+      delete entries[id];
     }
   }
+}
+
+function isEmptyEntry(entry: ProviderEntry): boolean {
+  return (
+    entry.baseUrl === undefined &&
+    entry.activeModel === undefined &&
+    (entry.models === undefined || Object.keys(entry.models).length === 0)
+  );
 }
 
 function normalizeProvider(id: string | undefined): string {
@@ -142,40 +165,63 @@ function normalizeProvider(id: string | undefined): string {
 }
 
 /**
- * Parse raw profile data and keep only genuine overrides: any
- * `baseUrl`/`model` that matches the provider's preset is dropped, as are
- * empty profile objects and malformed entries. This is the single chokepoint
- * that guarantees the setting never persists redundant (non-override) data —
- * including hand-edited input.
+ * Parse raw provider entries and keep only genuine overrides: any
+ * `baseUrl`/`activeModel` that matches the provider's preset is dropped, as are
+ * `jsonResponse`/`disableThinking` values that match their effective (per-model
+ * then per-provider) preset default, empty model/entry objects, and malformed
+ * entries. This is the single chokepoint that guarantees the setting never
+ * persists redundant (non-override) data — including hand-edited input.
  */
-export function normalizeProfiles(raw: unknown): ProviderProfiles {
-  if (typeof raw !== "object" || raw === null || Array.isArray(raw)) {
+export function normalizeBackendProviders(raw: unknown): ProviderEntries {
+  if (!isPlainObject(raw)) {
     return {};
   }
-  const out: ProviderProfiles = {};
-  for (const [key, value] of Object.entries(raw as Record<string, unknown>)) {
-    if (typeof value !== "object" || value === null || Array.isArray(value)) {
+  const out: ProviderEntries = {};
+  for (const [providerKey, providerValue] of Object.entries(raw)) {
+    if (!isPlainObject(providerValue)) {
       continue;
     }
-    const profile: ProviderProfile = {};
-    const baseUrl = (value as { baseUrl?: unknown }).baseUrl;
-    const model = (value as { model?: unknown }).model;
-    const jsonResponse = (value as { jsonResponse?: unknown }).jsonResponse;
-    const disableThinking = (value as { disableThinking?: unknown }).disableThinking;
-    if (typeof baseUrl === "string" && baseUrl.trim() && !isPresetBaseUrl(key, baseUrl)) {
-      profile.baseUrl = baseUrl;
+    const entry: ProviderEntry = {};
+    const baseUrl = providerValue.baseUrl;
+    if (typeof baseUrl === "string" && baseUrl.trim() && !isPresetBaseUrl(providerKey, baseUrl)) {
+      entry.baseUrl = baseUrl;
     }
-    if (typeof model === "string" && model.trim() && !isPresetModel(key, model)) {
-      profile.model = model;
+    const activeModel = providerValue.activeModel;
+    if (typeof activeModel === "string" && activeModel.trim() && !isPresetModel(providerKey, activeModel)) {
+      entry.activeModel = activeModel;
     }
-    if (typeof jsonResponse === "boolean" && !isPresetJsonResponse(key, jsonResponse)) {
-      profile.jsonResponse = jsonResponse;
+    const models = normalizeModelOverrides(providerKey, providerValue.models);
+    if (models && Object.keys(models).length > 0) {
+      entry.models = models;
     }
-    if (typeof disableThinking === "boolean" && !isPresetDisableThinking(key, disableThinking)) {
-      profile.disableThinking = disableThinking;
+    if (!isEmptyEntry(entry)) {
+      out[providerKey] = entry;
     }
-    if (Object.keys(profile).length > 0) {
-      out[key] = profile;
+  }
+  return out;
+}
+
+function normalizeModelOverrides(providerKey: string, raw: unknown): ModelOverrides | undefined {
+  if (!isPlainObject(raw)) {
+    return undefined;
+  }
+  const preset = getProvider(providerKey);
+  const out: ModelOverrides = {};
+  for (const [modelKey, modelValue] of Object.entries(raw)) {
+    if (!isPlainObject(modelValue)) {
+      continue;
+    }
+    const mo: ModelOverride = {};
+    const jsonResponse = modelValue.jsonResponse;
+    if (typeof jsonResponse === "boolean" && presetJsonResponse(preset, modelKey) !== jsonResponse) {
+      mo.jsonResponse = jsonResponse;
+    }
+    const disableThinking = modelValue.disableThinking;
+    if (typeof disableThinking === "boolean" && presetDisableThinking(preset, modelKey) !== disableThinking) {
+      mo.disableThinking = disableThinking;
+    }
+    if (Object.keys(mo).length > 0) {
+      out[modelKey] = mo;
     }
   }
   return out;
@@ -191,28 +237,18 @@ function isPresetModel(id: string, value: string): boolean {
   return !!preset && preset.defaultModel === value.trim();
 }
 
-function isPresetJsonResponse(id: string, value: boolean): boolean {
-  const preset = getProvider(id);
-  return (preset?.defaultJsonResponse ?? true) === value;
-}
-
-function isPresetDisableThinking(id: string, value: boolean): boolean {
-  const preset = getProvider(id);
-  return (preset?.defaultDisableThinking ?? false) === value;
-}
-
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-function readProvidersSetting(cfg: vscode.WorkspaceConfiguration): ProvidersSetting {
-  const raw = cfg.get<unknown>("providers");
+function readBackendSetting(cfg: vscode.WorkspaceConfiguration): BackendSetting {
+  const raw = cfg.get<unknown>("backend");
   if (isPlainObject(raw)) {
     const active = raw.activeProvider;
     return {
-      activeProvider: typeof active === "string" && active ? active : DEFAULT_CONFIG.providers.activeProvider,
-      profiles: normalizeProfiles(raw.profiles),
+      activeProvider: typeof active === "string" && active ? active : DEFAULT_CONFIG.backend.activeProvider,
+      providers: normalizeBackendProviders(raw.providers),
     };
   }
-  return { ...DEFAULT_CONFIG.providers };
+  return { ...DEFAULT_CONFIG.backend };
 }

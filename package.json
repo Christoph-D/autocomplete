@@ -34,16 +34,16 @@
           "default": true,
           "markdownDescription": "Enable automatic inline AI autocompletion. When disabled, manual trigger still works."
         },
-        "aiAutocomplete.providers": {
+        "aiAutocomplete.backend": {
           "type": "object",
           "default": {},
-          "markdownDescription": "Provider configuration. `activeProvider` is the current provider id; `profiles` remembers per-provider overrides (model, jsonResponse, disableThinking, and, for the custom provider, base URL). Managed automatically by provider selection — usually you should not edit this by hand.",
+          "markdownDescription": "Provider configuration. `activeProvider` is the current provider id; `providers` remembers per-provider entries (`baseUrl`, `activeModel`, and per-model `jsonResponse`/`disableThinking` overrides under `models`). Managed automatically by provider selection — usually you should not edit this by hand.",
           "properties": {
             "activeProvider": {
               "type": "string",
               "markdownDescription": "Active provider id. Defaults to `custom`."
             },
-            "profiles": {
+            "providers": {
               "type": "object",
               "additionalProperties": {
                 "type": "object",
@@ -51,16 +51,24 @@
                   "baseUrl": {
                     "type": "string"
                   },
-                  "model": {
+                  "activeModel": {
                     "type": "string"
                   },
-                  "jsonResponse": {
-                    "type": "boolean",
-                    "markdownDescription": "Request JSON responses from the LLM for this provider. Defaults to `true`; only `false` deviations are stored."
-                  },
-                  "disableThinking": {
-                    "type": "boolean",
-                    "markdownDescription": "Disable thinking (send `thinking: { type: \"disabled\" }`) for this provider for lower latency. Defaults to `true` for Deepseek and Z.ai, `false` elsewhere; only deviations from the preset are stored."
+                  "models": {
+                    "type": "object",
+                    "additionalProperties": {
+                      "type": "object",
+                      "properties": {
+                        "jsonResponse": {
+                          "type": "boolean",
+                          "markdownDescription": "Request JSON responses for this model. Only deviations from the effective preset default are stored."
+                        },
+                        "disableThinking": {
+                          "type": "boolean",
+                          "markdownDescription": "Disable thinking (send `thinking: { type: \"disabled\" }`) for this model for lower latency. Only deviations from the effective preset default are stored."
+                        }
+                      }
+                    }
                   }
                 }
               }

@@ -4,11 +4,26 @@ import {
   PROVIDERS,
   getProvider,
   isCustomProvider,
+  presetDisableThinking,
+  presetJsonResponse,
   resolveBaseUrl,
   resolveDisableThinking,
   resolveJsonResponse,
   resolveModel,
+  type ProviderPreset,
 } from "../../src/config/providers";
+
+function preset(over: Partial<ProviderPreset> = {}): ProviderPreset {
+  return {
+    id: "test",
+    label: "Test",
+    baseUrl: "",
+    defaultModel: "",
+    defaultJsonResponse: true,
+    defaultDisableThinking: false,
+    ...over,
+  };
+}
 
 suite("provider catalog", () => {
   test("ids are unique", () => {
@@ -44,14 +59,14 @@ suite("provider catalog", () => {
     assert.strictEqual(isCustomProvider(undefined), false);
   });
 
-  test("resolveBaseUrl prefers the stored profile, then the preset", () => {
+  test("resolveBaseUrl prefers the stored override, then the preset", () => {
     assert.strictEqual(resolveBaseUrl("mistral", undefined), "https://api.mistral.ai/v1");
     assert.strictEqual(resolveBaseUrl("mistral", "https://custom.example/v1"), "https://custom.example/v1");
     assert.strictEqual(resolveBaseUrl(CUSTOM_PROVIDER_ID, undefined), "");
     assert.strictEqual(resolveBaseUrl(CUSTOM_PROVIDER_ID, "https://my-llama/v1"), "https://my-llama/v1");
   });
 
-  test("resolveModel prefers the stored profile, then the preset default", () => {
+  test("resolveModel prefers the stored override, then the preset default", () => {
     assert.strictEqual(resolveModel("zai", undefined), "glm-5.2");
     assert.strictEqual(resolveModel("zai", "glm-4.6"), "glm-4.6");
     assert.strictEqual(resolveModel("openrouter", undefined), "");
@@ -70,25 +85,84 @@ suite("provider catalog", () => {
       assert.strictEqual(p.defaultDisableThinking, expected, `${p.id} defaultDisableThinking should be ${expected}`);
     }
   });
+});
 
-  test("resolveJsonResponse prefers the stored profile, then the preset default", () => {
-    assert.strictEqual(resolveJsonResponse("zai", undefined), true);
-    assert.strictEqual(resolveJsonResponse("zai", false), false);
-    assert.strictEqual(resolveJsonResponse("zai", true), true);
-    assert.strictEqual(resolveJsonResponse(CUSTOM_PROVIDER_ID, undefined), true);
-    assert.strictEqual(resolveJsonResponse(CUSTOM_PROVIDER_ID, false), false);
-    assert.strictEqual(resolveJsonResponse("unknown", undefined), true);
+suite("presetJsonResponse / presetDisableThinking", () => {
+  test("falls back to the provider-level default when no per-model entry exists", () => {
+    assert.strictEqual(presetJsonResponse(preset({ defaultJsonResponse: true }), "any"), true);
+    assert.strictEqual(presetJsonResponse(preset({ defaultJsonResponse: false }), "any"), false);
+    assert.strictEqual(presetDisableThinking(preset({ defaultDisableThinking: true }), "any"), true);
+    assert.strictEqual(presetDisableThinking(preset({ defaultDisableThinking: false }), "any"), false);
   });
 
-  test("resolveDisableThinking prefers the stored profile, then the preset default", () => {
-    assert.strictEqual(resolveDisableThinking("zai", undefined), true);
-    assert.strictEqual(resolveDisableThinking("deepseek", undefined), true);
-    assert.strictEqual(resolveDisableThinking("zai-coding-plan", undefined), true);
-    assert.strictEqual(resolveDisableThinking("zai", false), false);
-    assert.strictEqual(resolveDisableThinking("mistral", undefined), false);
-    assert.strictEqual(resolveDisableThinking("mistral", true), true);
-    assert.strictEqual(resolveDisableThinking(CUSTOM_PROVIDER_ID, undefined), false);
-    assert.strictEqual(resolveDisableThinking(CUSTOM_PROVIDER_ID, true), true);
-    assert.strictEqual(resolveDisableThinking("unknown", undefined), false);
+  test("a per-model preset default overrides the provider-level default", () => {
+    const p = preset({
+      defaultJsonResponse: true,
+      defaultDisableThinking: false,
+      models: {
+        "reasoning-model": { jsonResponse: false, disableThinking: true },
+      },
+    });
+    assert.strictEqual(presetJsonResponse(p, "reasoning-model"), false);
+    assert.strictEqual(presetDisableThinking(p, "reasoning-model"), true);
+    assert.strictEqual(presetJsonResponse(p, "other"), true);
+    assert.strictEqual(presetDisableThinking(p, "other"), false);
+  });
+
+  test("a partial per-model entry only overrides the fields it sets", () => {
+    const p = preset({
+      defaultJsonResponse: true,
+      defaultDisableThinking: false,
+      models: { m: { disableThinking: true } },
+    });
+    assert.strictEqual(presetJsonResponse(p, "m"), true);
+    assert.strictEqual(presetDisableThinking(p, "m"), true);
+  });
+
+  test("returns the global fallback for an unknown preset", () => {
+    assert.strictEqual(presetJsonResponse(undefined, "m"), true);
+    assert.strictEqual(presetDisableThinking(undefined, "m"), false);
+  });
+
+  test("ignores the model id when it is undefined", () => {
+    const p = preset({
+      defaultJsonResponse: false,
+      defaultDisableThinking: true,
+      models: { m: { jsonResponse: true } },
+    });
+    assert.strictEqual(presetJsonResponse(p, undefined), false);
+    assert.strictEqual(presetDisableThinking(p, undefined), true);
+  });
+});
+
+suite("resolveJsonResponse / resolveDisableThinking", () => {
+  test("a stored override wins over preset and per-model defaults", () => {
+    assert.strictEqual(resolveJsonResponse("zai", "glm-5.2", false), false);
+    assert.strictEqual(resolveJsonResponse("zai", "glm-5.2", true), true);
+    assert.strictEqual(resolveDisableThinking("zai", "glm-5.2", false), false);
+    assert.strictEqual(resolveDisableThinking("mistral", "codestral-latest", true), true);
+  });
+
+  test("falls back to the provider-level preset default", () => {
+    assert.strictEqual(resolveJsonResponse("zai", undefined, undefined), true);
+    assert.strictEqual(resolveJsonResponse("zai", "glm-5.2", undefined), true);
+    assert.strictEqual(resolveDisableThinking("zai", undefined, undefined), true);
+    assert.strictEqual(resolveDisableThinking("deepseek", undefined, undefined), true);
+    assert.strictEqual(resolveDisableThinking("zai-coding-plan", undefined, undefined), true);
+    assert.strictEqual(resolveDisableThinking("mistral", undefined, undefined), false);
+    assert.strictEqual(resolveJsonResponse(CUSTOM_PROVIDER_ID, undefined, undefined), true);
+    assert.strictEqual(resolveDisableThinking(CUSTOM_PROVIDER_ID, undefined, undefined), false);
+    assert.strictEqual(resolveJsonResponse("unknown", undefined, undefined), true);
+    assert.strictEqual(resolveDisableThinking("unknown", undefined, undefined), false);
+  });
+
+  test("honours a per-model preset default via the catalog", () => {
+    const zai = getProvider("zai")!;
+    const withModelDefault: ProviderPreset = {
+      ...zai,
+      models: { "glm-4.6": { disableThinking: false } },
+    };
+    assert.strictEqual(presetDisableThinking(withModelDefault, "glm-4.6"), false);
+    assert.strictEqual(presetDisableThinking(withModelDefault, "glm-5.2"), true);
   });
 });

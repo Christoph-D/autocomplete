@@ -1,11 +1,20 @@
 /**
  * Built-in provider presets.
  *
- * The active provider's effective `apiBaseUrl` and `model` are resolved from
- * the provider preset together with any per-provider override stored in
- * `aiAutocomplete.providers.profiles` (which also holds the custom provider's
- * base URL).
+ * The active provider's effective `apiBaseUrl`, `model`, `jsonResponse`, and
+ * `disableThinking` are resolved from the provider preset together with any
+ * per-provider / per-model override stored in `aiAutocomplete.backend.providers`
+ * (which also holds the custom provider's base URL).
+ *
+ * `models` lets a preset refine the `jsonResponse` / `disableThinking` defaults
+ * for specific models; entries here take precedence over the provider-level
+ * defaults.
  */
+export interface ModelPreset {
+  jsonResponse?: boolean;
+  disableThinking?: boolean;
+}
+
 export interface ProviderPreset {
   id: string;
   label: string;
@@ -13,6 +22,8 @@ export interface ProviderPreset {
   defaultModel: string;
   defaultJsonResponse: boolean;
   defaultDisableThinking: boolean;
+  /** Per-model refinements of the provider-level defaults. */
+  models?: Record<string, ModelPreset>;
   /** Where to sign up for an API key. Shown in prompts. */
   docsUrl?: string;
 }
@@ -96,52 +107,83 @@ export function isCustomProvider(id: string | undefined): boolean {
 }
 
 /**
- * Resolve the base URL for a provider, preferring a remembered profile override
- * over the preset default. The custom provider has no preset default and relies
+ * Resolve the base URL for a provider, preferring a remembered override over
+ * the preset default. The custom provider has no preset default and relies
  * entirely on a stored override.
  */
-export function resolveBaseUrl(id: string, profileBaseUrl: string | undefined): string {
+export function resolveBaseUrl(id: string, overrideBaseUrl: string | undefined): string {
   const preset = getProvider(id);
-  const fromProfile = (profileBaseUrl ?? "").trim();
-  if (fromProfile) {
-    return fromProfile;
+  const fromOverride = (overrideBaseUrl ?? "").trim();
+  if (fromOverride) {
+    return fromOverride;
   }
   return preset?.baseUrl ?? "";
 }
 
 /**
- * Resolve the model for a provider, preferring a remembered profile override
- * over the preset default. Returns empty string when neither is known.
+ * Resolve the model for a provider, preferring a remembered override over the
+ * preset default. Returns empty string when neither is known.
  */
-export function resolveModel(id: string, profileModel: string | undefined): string {
+export function resolveModel(id: string, overrideModel: string | undefined): string {
   const preset = getProvider(id);
-  const fromProfile = (profileModel ?? "").trim();
-  if (fromProfile) {
-    return fromProfile;
+  const fromOverride = (overrideModel ?? "").trim();
+  if (fromOverride) {
+    return fromOverride;
   }
   return preset?.defaultModel ?? "";
 }
 
 /**
- * Resolve the JSON-response preference for a provider, preferring a remembered
- * profile override over the preset default. Falls back to `true` for unknown
- * providers so JSON mode stays on by default.
+ * Resolve the JSON-response preference, preferring a stored per-model override,
+ * then a per-model preset default, then the provider-level preset default.
+ * Falls back to `true` for unknown providers so JSON mode stays on by default.
  */
-export function resolveJsonResponse(id: string, profileValue: boolean | undefined): boolean {
-  if (typeof profileValue === "boolean") {
-    return profileValue;
+export function resolveJsonResponse(id: string, modelId: string | undefined, override: boolean | undefined): boolean {
+  if (typeof override === "boolean") {
+    return override;
   }
-  return getProvider(id)?.defaultJsonResponse ?? true;
+  return presetJsonResponse(getProvider(id), modelId);
 }
 
 /**
- * Resolve the thinking-disabled preference for a provider, preferring a
- * remembered profile override over the preset default. Falls back to `false`
- * for unknown providers so thinking stays enabled by default.
+ * Resolve the thinking-disabled preference, preferring a stored per-model
+ * override, then a per-model preset default, then the provider-level preset
+ * default. Falls back to `false` for unknown providers so thinking stays
+ * enabled by default.
  */
-export function resolveDisableThinking(id: string, profileValue: boolean | undefined): boolean {
-  if (typeof profileValue === "boolean") {
-    return profileValue;
+export function resolveDisableThinking(
+  id: string,
+  modelId: string | undefined,
+  override: boolean | undefined,
+): boolean {
+  if (typeof override === "boolean") {
+    return override;
   }
-  return getProvider(id)?.defaultDisableThinking ?? false;
+  return presetDisableThinking(getProvider(id), modelId);
+}
+
+/**
+ * The effective default `jsonResponse` for `modelId` under `preset`: a
+ * per-model preset default wins over the provider-level default. Pure
+ * (catalog-independent) so the per-model precedence can be tested directly.
+ */
+export function presetJsonResponse(preset: ProviderPreset | undefined, modelId: string | undefined): boolean {
+  const modelPreset = modelId ? preset?.models?.[modelId] : undefined;
+  if (typeof modelPreset?.jsonResponse === "boolean") {
+    return modelPreset.jsonResponse;
+  }
+  return preset?.defaultJsonResponse ?? true;
+}
+
+/**
+ * The effective default `disableThinking` for `modelId` under `preset`: a
+ * per-model preset default wins over the provider-level default. Pure
+ * (catalog-independent) so the per-model precedence can be tested directly.
+ */
+export function presetDisableThinking(preset: ProviderPreset | undefined, modelId: string | undefined): boolean {
+  const modelPreset = modelId ? preset?.models?.[modelId] : undefined;
+  if (typeof modelPreset?.disableThinking === "boolean") {
+    return modelPreset.disableThinking;
+  }
+  return preset?.defaultDisableThinking ?? false;
 }
