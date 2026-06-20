@@ -9,7 +9,8 @@ import type { AutocompleteConfig } from "./configuration";
  *
  * `model` and `apiBaseUrl` are not user-facing settings; they are derived by
  * `readConfig` from the active provider and its profile. Both are empty for the
- * default `custom` provider with no profile.
+ * default `custom` provider with no profile. `jsonResponse` is likewise derived
+ * from the active provider's profile; it defaults to `true` for every provider.
  */
 export const DEFAULT_CONFIG: Readonly<AutocompleteConfig> = {
   enabled: true,

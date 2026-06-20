@@ -1,6 +1,13 @@
 import * as vscode from "vscode";
 import { DEFAULT_CONFIG } from "./constants";
-import { CUSTOM_PROVIDER_ID, getProvider, isCustomProvider, resolveBaseUrl, resolveModel } from "./providers";
+import {
+  CUSTOM_PROVIDER_ID,
+  getProvider,
+  isCustomProvider,
+  resolveBaseUrl,
+  resolveJsonResponse,
+  resolveModel,
+} from "./providers";
 
 const SECTION = "aiAutocomplete";
 
@@ -9,6 +16,7 @@ export type LogLevel = "off" | "error" | "info" | "trace";
 export interface ProviderProfile {
   baseUrl?: string;
   model?: string;
+  jsonResponse?: boolean;
 }
 
 export type ProviderProfiles = Record<string, ProviderProfile>;
@@ -59,7 +67,7 @@ export function readConfig(): AutocompleteConfig {
     requestTimeoutMs: cfg.get<number>("requestTimeoutMs", DEFAULT_CONFIG.requestTimeoutMs),
     delayMs: cfg.get<number>("delayMs", DEFAULT_CONFIG.delayMs),
     maxContextChars: cfg.get<number>("maxContextChars", DEFAULT_CONFIG.maxContextChars),
-    jsonResponse: cfg.get<boolean>("jsonResponse", DEFAULT_CONFIG.jsonResponse),
+    jsonResponse: resolveJsonResponse(provider, profile?.jsonResponse),
     logLevel: cfg.get<LogLevel>("logLevel", DEFAULT_CONFIG.logLevel),
   };
 }
@@ -148,11 +156,15 @@ export function normalizeProfiles(raw: unknown): ProviderProfiles {
     const profile: ProviderProfile = {};
     const baseUrl = (value as { baseUrl?: unknown }).baseUrl;
     const model = (value as { model?: unknown }).model;
+    const jsonResponse = (value as { jsonResponse?: unknown }).jsonResponse;
     if (typeof baseUrl === "string" && baseUrl.trim() && !isPresetBaseUrl(key, baseUrl)) {
       profile.baseUrl = baseUrl;
     }
     if (typeof model === "string" && model.trim() && !isPresetModel(key, model)) {
       profile.model = model;
+    }
+    if (typeof jsonResponse === "boolean" && !isPresetJsonResponse(key, jsonResponse)) {
+      profile.jsonResponse = jsonResponse;
     }
     if (Object.keys(profile).length > 0) {
       out[key] = profile;
@@ -169,6 +181,11 @@ function isPresetBaseUrl(id: string, value: string): boolean {
 function isPresetModel(id: string, value: string): boolean {
   const preset = getProvider(id);
   return !!preset && preset.defaultModel === value.trim();
+}
+
+function isPresetJsonResponse(id: string, value: boolean): boolean {
+  const preset = getProvider(id);
+  return (preset?.defaultJsonResponse ?? true) === value;
 }
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {

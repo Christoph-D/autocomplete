@@ -5,6 +5,7 @@ import {
   getProvider,
   isCustomProvider,
   resolveBaseUrl,
+  resolveJsonResponse,
   resolveModel,
 } from "../../src/config/providers";
 
@@ -54,5 +55,20 @@ suite("provider catalog", () => {
     assert.strictEqual(resolveModel("zai", "glm-4.6"), "glm-4.6");
     assert.strictEqual(resolveModel("openrouter", undefined), "");
     assert.strictEqual(resolveModel(CUSTOM_PROVIDER_ID, undefined), "");
+  });
+
+  test("every preset defaults jsonResponse to true", () => {
+    for (const p of PROVIDERS) {
+      assert.strictEqual(p.defaultJsonResponse, true, `${p.id} should default jsonResponse to true`);
+    }
+  });
+
+  test("resolveJsonResponse prefers the stored profile, then the preset default", () => {
+    assert.strictEqual(resolveJsonResponse("zai", undefined), true);
+    assert.strictEqual(resolveJsonResponse("zai", false), false);
+    assert.strictEqual(resolveJsonResponse("zai", true), true);
+    assert.strictEqual(resolveJsonResponse(CUSTOM_PROVIDER_ID, undefined), true);
+    assert.strictEqual(resolveJsonResponse(CUSTOM_PROVIDER_ID, false), false);
+    assert.strictEqual(resolveJsonResponse("unknown", undefined), true);
   });
 });

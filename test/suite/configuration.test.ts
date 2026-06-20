@@ -40,6 +40,41 @@ suite("normalizeProfiles", () => {
     assert.deepStrictEqual(out, { [CUSTOM_PROVIDER_ID]: { baseUrl: "https://my-llama/v1", model: "llama3" } });
   });
 
+  test("drops a jsonResponse that matches the provider's preset default (true)", () => {
+    const out = normalizeProfiles({ mistral: { jsonResponse: true } });
+    assert.deepStrictEqual(out, {});
+  });
+
+  test("drops jsonResponse true for the custom provider too", () => {
+    const out = normalizeProfiles({ [CUSTOM_PROVIDER_ID]: { jsonResponse: true } });
+    assert.deepStrictEqual(out, {});
+  });
+
+  test("keeps a jsonResponse override of false", () => {
+    const out = normalizeProfiles({ mistral: { jsonResponse: false } });
+    assert.deepStrictEqual(out, { mistral: { jsonResponse: false } });
+  });
+
+  test("keeps a jsonResponse override of false for the custom provider", () => {
+    const out = normalizeProfiles({ [CUSTOM_PROVIDER_ID]: { jsonResponse: false } });
+    assert.deepStrictEqual(out, { [CUSTOM_PROVIDER_ID]: { jsonResponse: false } });
+  });
+
+  test("keeps jsonResponse false alongside other overrides", () => {
+    const out = normalizeProfiles({ mistral: { model: "open-codestral", jsonResponse: false } });
+    assert.deepStrictEqual(out, { mistral: { model: "open-codestral", jsonResponse: false } });
+  });
+
+  test("drops jsonResponse true while keeping a genuine override on the same profile", () => {
+    const out = normalizeProfiles({ mistral: { model: "open-codestral", jsonResponse: true } });
+    assert.deepStrictEqual(out, { mistral: { model: "open-codestral" } });
+  });
+
+  test("ignores non-boolean jsonResponse values", () => {
+    assert.deepStrictEqual(normalizeProfiles({ mistral: { jsonResponse: "yes" } }), {});
+    assert.deepStrictEqual(normalizeProfiles({ mistral: { jsonResponse: 1 } }), {});
+  });
+
   test("ignores whitespace when comparing against the preset", () => {
     const out = normalizeProfiles({ mistral: { model: `  ${MISTRAL_MODEL}  ` } });
     assert.deepStrictEqual(out, {});

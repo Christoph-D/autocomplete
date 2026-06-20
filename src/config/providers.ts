@@ -11,6 +11,7 @@ export interface ProviderPreset {
   label: string;
   baseUrl: string;
   defaultModel: string;
+  defaultJsonResponse: boolean;
   /** Where to sign up for an API key. Shown in prompts. */
   docsUrl?: string;
 }
@@ -23,6 +24,7 @@ export const PROVIDERS: readonly ProviderPreset[] = [
     label: "Mistral",
     baseUrl: "https://api.mistral.ai/v1",
     defaultModel: "codestral-latest",
+    defaultJsonResponse: true,
     docsUrl: "https://console.mistral.ai/api-keys",
   },
   {
@@ -30,6 +32,7 @@ export const PROVIDERS: readonly ProviderPreset[] = [
     label: "Z.ai",
     baseUrl: "https://api.z.ai/api/paas/v4",
     defaultModel: "glm-5.2",
+    defaultJsonResponse: true,
     docsUrl: "https://z.ai/manage-apikey/apikey-list",
   },
   {
@@ -37,6 +40,7 @@ export const PROVIDERS: readonly ProviderPreset[] = [
     label: "Deepseek",
     baseUrl: "https://api.deepseek.com",
     defaultModel: "deepseek-v4-flash",
+    defaultJsonResponse: true,
     docsUrl: "https://platform.deepseek.com/api_keys",
   },
   {
@@ -44,6 +48,7 @@ export const PROVIDERS: readonly ProviderPreset[] = [
     label: "OpenRouter",
     baseUrl: "https://openrouter.ai/api/v1",
     defaultModel: "",
+    defaultJsonResponse: true,
     docsUrl: "https://openrouter.ai/keys",
   },
   {
@@ -51,6 +56,7 @@ export const PROVIDERS: readonly ProviderPreset[] = [
     label: "Custom provider",
     baseUrl: "",
     defaultModel: "",
+    defaultJsonResponse: true,
   },
 ];
 
@@ -90,4 +96,16 @@ export function resolveModel(id: string, profileModel: string | undefined): stri
     return fromProfile;
   }
   return preset?.defaultModel ?? "";
+}
+
+/**
+ * Resolve the JSON-response preference for a provider, preferring a remembered
+ * profile override over the preset default. Falls back to `true` for unknown
+ * providers so JSON mode stays on by default.
+ */
+export function resolveJsonResponse(id: string, profileValue: boolean | undefined): boolean {
+  if (typeof profileValue === "boolean") {
+    return profileValue;
+  }
+  return getProvider(id)?.defaultJsonResponse ?? true;
 }
