@@ -16,7 +16,7 @@ export const DEFAULT_CONFIG: Readonly<AutocompleteConfig> = {
   provider: "custom",
   model: "",
   apiBaseUrl: "",
-  providerProfiles: {},
+  providers: { activeProvider: "custom", profiles: {} },
   maxContextLinesBefore: 100,
   maxContextLinesAfter: 50,
   maxTokens: 100,

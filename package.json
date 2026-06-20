@@ -34,23 +34,27 @@
           "default": true,
           "markdownDescription": "Enable automatic inline AI autocompletion. When disabled, manual trigger still works."
         },
-        "aiAutocomplete.provider": {
-          "type": "string",
-          "default": "custom",
-          "markdownDescription": "Active provider. Use the **AI Autocomplete: Select Provider** command to switch; this also remembers each provider's API key and model. One of `mistral`, `zai`, `deepseek`, `openrouter`, or `custom`."
-        },
-        "aiAutocomplete.providerProfiles": {
+        "aiAutocomplete.providers": {
           "type": "object",
           "default": {},
-          "markdownDescription": "Remembered per-provider overrides (model and, for the custom provider, base URL). Managed automatically by provider selection — usually you should not edit this by hand.",
-          "additionalProperties": {
-            "type": "object",
-            "properties": {
-              "baseUrl": {
-                "type": "string"
-              },
-              "model": {
-                "type": "string"
+          "markdownDescription": "Provider configuration. `activeProvider` is the current provider id; `profiles` remembers per-provider overrides (model and, for the custom provider, base URL). Managed automatically by provider selection — usually you should not edit this by hand.",
+          "properties": {
+            "activeProvider": {
+              "type": "string",
+              "markdownDescription": "Active provider id. Defaults to `custom`."
+            },
+            "profiles": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "object",
+                "properties": {
+                  "baseUrl": {
+                    "type": "string"
+                  },
+                  "model": {
+                    "type": "string"
+                  }
+                }
               }
             }
           }

@@ -3,7 +3,7 @@
  *
  * The active provider's effective `apiBaseUrl` and `model` are resolved from
  * the provider preset together with any per-provider override stored in
- * `aiAutocomplete.providerProfiles` (which also holds the custom provider's
+ * `aiAutocomplete.providers.profiles` (which also holds the custom provider's
  * base URL).
  */
 export interface ProviderPreset {

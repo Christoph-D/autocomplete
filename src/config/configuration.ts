@@ -6,11 +6,6 @@ const SECTION = "aiAutocomplete";
 
 export type LogLevel = "off" | "error" | "info" | "trace";
 
-/**
- * Per-provider override settings, stored under `aiAutocomplete.providerProfiles`
- * keyed by provider id. Only deviations from a provider's preset belong here
- * (the custom provider, which has no preset, always stores its base URL/model).
- */
 export interface ProviderProfile {
   baseUrl?: string;
   model?: string;
@@ -18,12 +13,23 @@ export interface ProviderProfile {
 
 export type ProviderProfiles = Record<string, ProviderProfile>;
 
+/**
+ * The `aiAutocomplete.providers` setting: the active provider id plus the
+ * remembered per-provider overrides. Only deviations from a provider's preset
+ * belong in `profiles` (the custom provider, which has no preset, always
+ * stores its base URL/model).
+ */
+export interface ProvidersSetting {
+  activeProvider: string;
+  profiles: ProviderProfiles;
+}
+
 export interface AutocompleteConfig {
   enabled: boolean;
   provider: string;
   model: string;
   apiBaseUrl: string;
-  providerProfiles: ProviderProfiles;
+  providers: ProvidersSetting;
   maxContextLinesBefore: number;
   maxContextLinesAfter: number;
   maxTokens: number;
@@ -37,15 +43,15 @@ export interface AutocompleteConfig {
 
 export function readConfig(): AutocompleteConfig {
   const cfg = vscode.workspace.getConfiguration(SECTION);
-  const provider = normalizeProvider(cfg.get<string>("provider", DEFAULT_CONFIG.provider));
-  const profiles = normalizeProfiles(cfg.get<unknown>("providerProfiles", DEFAULT_CONFIG.providerProfiles));
-  const profile = profiles[provider];
+  const providers = readProvidersSetting(cfg);
+  const provider = normalizeProvider(providers.activeProvider);
+  const profile = providers.profiles[provider];
   return {
     enabled: cfg.get<boolean>("enabled", DEFAULT_CONFIG.enabled),
     provider,
     model: resolveModel(provider, profile?.model),
     apiBaseUrl: resolveBaseUrl(provider, profile?.baseUrl),
-    providerProfiles: profiles,
+    providers,
     maxContextLinesBefore: cfg.get<number>("maxContextLinesBefore", DEFAULT_CONFIG.maxContextLinesBefore),
     maxContextLinesAfter: cfg.get<number>("maxContextLinesAfter", DEFAULT_CONFIG.maxContextLinesAfter),
     maxTokens: cfg.get<number>("maxTokens", DEFAULT_CONFIG.maxTokens),
@@ -64,14 +70,16 @@ export async function setEnabled(value: boolean): Promise<void> {
 
 /**
  * Activate `providerId` as the current provider. Per-provider overrides live
- * in `providerProfiles` (the single source of truth for model/base URL), so
+ * in `providers.profiles` (the single source of truth for model/base URL), so
  * switching only needs to update the active provider id.
  *
  * Returns the provider that is now active so callers can drive follow-up prompts.
  */
 export async function switchProvider(providerId: string): Promise<string> {
   const target = normalizeProvider(providerId);
-  await vscode.workspace.getConfiguration(SECTION).update("provider", target, vscode.ConfigurationTarget.Global);
+  const cfg = vscode.workspace.getConfiguration(SECTION);
+  const setting = readProvidersSetting(cfg);
+  await cfg.update("providers", { ...setting, activeProvider: target }, vscode.ConfigurationTarget.Global);
   return target;
 }
 
@@ -81,11 +89,11 @@ export async function switchProvider(providerId: string): Promise<string> {
  */
 export async function setProviderModel(providerId: string, model: string): Promise<void> {
   const cfg = vscode.workspace.getConfiguration(SECTION);
-  const profiles = normalizeProfiles(cfg.get<unknown>("providerProfiles", {}));
+  const setting = readProvidersSetting(cfg);
   const id = normalizeProvider(providerId);
   const value = model === getProvider(id)?.defaultModel ? undefined : model;
-  setProfileField(profiles, id, "model", value);
-  await cfg.update("providerProfiles", profiles, vscode.ConfigurationTarget.Global);
+  setProfileField(setting.profiles, id, "model", value);
+  await cfg.update("providers", setting, vscode.ConfigurationTarget.Global);
 }
 
 /**
@@ -94,11 +102,11 @@ export async function setProviderModel(providerId: string, model: string): Promi
  */
 export async function setProviderBaseUrl(providerId: string, baseUrl: string): Promise<void> {
   const cfg = vscode.workspace.getConfiguration(SECTION);
-  const profiles = normalizeProfiles(cfg.get<unknown>("providerProfiles", {}));
+  const setting = readProvidersSetting(cfg);
   const id = normalizeProvider(providerId);
   const value = isCustomProvider(id) ? baseUrl : baseUrl === getProvider(id)?.baseUrl ? undefined : baseUrl;
-  setProfileField(profiles, id, "baseUrl", value);
-  await cfg.update("providerProfiles", profiles, vscode.ConfigurationTarget.Global);
+  setProfileField(setting.profiles, id, "baseUrl", value);
+  await cfg.update("providers", setting, vscode.ConfigurationTarget.Global);
 }
 
 function setProfileField(
@@ -122,11 +130,11 @@ function normalizeProvider(id: string | undefined): string {
 }
 
 /**
- * Parse raw `providerProfiles` data and keep only genuine overrides: any
+ * Parse raw profile data and keep only genuine overrides: any
  * `baseUrl`/`model` that matches the provider's preset is dropped, as are
  * empty profile objects and malformed entries. This is the single chokepoint
  * that guarantees the setting never persists redundant (non-override) data —
- * including legacy or hand-edited input.
+ * including hand-edited input.
  */
 export function normalizeProfiles(raw: unknown): ProviderProfiles {
   if (typeof raw !== "object" || raw === null || Array.isArray(raw)) {
@@ -161,4 +169,20 @@ function isPresetBaseUrl(id: string, value: string): boolean {
 function isPresetModel(id: string, value: string): boolean {
   const preset = getProvider(id);
   return !!preset && preset.defaultModel === value.trim();
+}
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function readProvidersSetting(cfg: vscode.WorkspaceConfiguration): ProvidersSetting {
+  const raw = cfg.get<unknown>("providers");
+  if (isPlainObject(raw)) {
+    const active = raw.activeProvider;
+    return {
+      activeProvider: typeof active === "string" && active ? active : DEFAULT_CONFIG.providers.activeProvider,
+      profiles: normalizeProfiles(raw.profiles),
+    };
+  }
+  return { ...DEFAULT_CONFIG.providers };
 }
