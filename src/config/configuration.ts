@@ -70,7 +70,7 @@ export interface AutocompleteConfig extends UserFacingDefaults {
   provider: string;
   model: string;
   apiBaseUrl: string;
-  temperature: number;
+  temperature?: number;
   jsonResponse: boolean;
   disableThinking: boolean;
 }

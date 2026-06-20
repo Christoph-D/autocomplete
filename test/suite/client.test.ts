@@ -299,4 +299,29 @@ suite("LlmClient", () => {
     const body = JSON.parse(String(capturedInit?.body));
     assert.ok(!("response_format" in body));
   });
+
+  test("omits temperature when the request does not specify one", async () => {
+    let capturedInit: RequestInit | undefined;
+    const fetchFn = (async (_url: unknown, init?: RequestInit) => {
+      capturedInit = init;
+      return {
+        ok: true,
+        status: 200,
+        statusText: "OK",
+        async text() {
+          return "";
+        },
+        async json() {
+          return { choices: [{ message: { content: "x" } }] };
+        },
+      } as unknown as Response;
+    }) as typeof fetch;
+
+    const client = createLlmClient({ fetch: fetchFn });
+    const { temperature: _omit, ...reqWithoutTemp } = baseRequest();
+    void _omit;
+    await client.complete(reqWithoutTemp, new AbortController().signal);
+    const body = JSON.parse(String(capturedInit?.body));
+    assert.ok(!("temperature" in body));
+  });
 });

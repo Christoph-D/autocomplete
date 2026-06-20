@@ -40,18 +40,18 @@ suite("normalizeBackendProviders", () => {
     assert.deepStrictEqual(out, { [CUSTOM_PROVIDER_ID]: { baseUrl: "https://my-llama/v1", activeModel: "llama3" } });
   });
 
-  test("drops a per-model temperature that matches the provider's preset default", () => {
+  test("keeps a per-model temperature override (no provider-level default to match)", () => {
     assert.deepStrictEqual(
       normalizeBackendProviders({ mistral: { models: { "open-codestral": { temperature: 0.2 } } } }),
-      {},
+      { mistral: { models: { "open-codestral": { temperature: 0.2 } } } },
     );
     assert.deepStrictEqual(
       normalizeBackendProviders({ deepseek: { models: { "deepseek-v4-flash": { temperature: 0.2 } } } }),
-      {},
+      { deepseek: { models: { "deepseek-v4-flash": { temperature: 0.2 } } } },
     );
     assert.deepStrictEqual(
       normalizeBackendProviders({ [CUSTOM_PROVIDER_ID]: { models: { llama3: { temperature: 0.2 } } } }),
-      {},
+      { [CUSTOM_PROVIDER_ID]: { models: { llama3: { temperature: 0.2 } } } },
     );
   });
 
@@ -80,11 +80,13 @@ suite("normalizeBackendProviders", () => {
     });
   });
 
-  test("drops temperature matching preset while keeping a genuine override on the same model", () => {
+  test("keeps a temperature override alongside other overrides on the same model", () => {
     const out = normalizeBackendProviders({
       mistral: { models: { "open-codestral": { temperature: 0.2, jsonResponse: false } } },
     });
-    assert.deepStrictEqual(out, { mistral: { models: { "open-codestral": { jsonResponse: false } } } });
+    assert.deepStrictEqual(out, {
+      mistral: { models: { "open-codestral": { temperature: 0.2, jsonResponse: false } } },
+    });
   });
 
   test("ignores non-number per-model temperature values", () => {

@@ -60,9 +60,11 @@ export function createLlmClient(deps: LlmClientDeps = {}): LlmClient {
           model: req.model,
           messages: req.messages,
           max_tokens: req.maxTokens,
-          temperature: req.temperature,
           stream: false,
         };
+        if (req.temperature !== undefined) {
+          reqBody.temperature = req.temperature;
+        }
         if (req.responseFormat) {
           reqBody.response_format = req.responseFormat;
         }

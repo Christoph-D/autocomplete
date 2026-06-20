@@ -85,4 +85,12 @@ suite("prompt", () => {
     const req = buildRequest(messages, { ...cfg(), jsonResponse: false }, "sk-test");
     assert.strictEqual(req.responseFormat, undefined);
   });
+
+  test("buildRequest omits temperature when it is absent", () => {
+    const messages = buildMessages(ctx(), cfg());
+    const { temperature: _omit, ...cfgWithoutTemp } = cfg();
+    void _omit;
+    const req = buildRequest(messages, cfgWithoutTemp, "sk-test");
+    assert.strictEqual(req.temperature, undefined);
+  });
 });

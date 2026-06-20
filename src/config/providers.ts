@@ -22,7 +22,6 @@ export interface ProviderPreset {
   label: string;
   baseUrl: string;
   defaultModel: string;
-  defaultTemperature: number;
   defaultJsonResponse: boolean;
   defaultDisableThinking: boolean;
   /** Per-model refinements of the provider-level defaults. */
@@ -39,7 +38,6 @@ export const PROVIDERS: readonly ProviderPreset[] = [
     label: "Mistral",
     baseUrl: "https://api.mistral.ai/v1",
     defaultModel: "codestral-latest",
-    defaultTemperature: 0.2,
     defaultJsonResponse: true,
     defaultDisableThinking: false,
     docsUrl: "https://console.mistral.ai/api-keys",
@@ -49,7 +47,6 @@ export const PROVIDERS: readonly ProviderPreset[] = [
     label: "Z.ai API",
     baseUrl: "https://api.z.ai/api/paas/v4",
     defaultModel: "glm-5.2",
-    defaultTemperature: 0.2,
     defaultJsonResponse: true,
     defaultDisableThinking: true,
     docsUrl: "https://z.ai/manage-apikey/apikey-list",
@@ -59,7 +56,6 @@ export const PROVIDERS: readonly ProviderPreset[] = [
     label: "Z.ai Coding Plan",
     baseUrl: "https://api.z.ai/api/coding/paas/v4",
     defaultModel: "glm-5.2",
-    defaultTemperature: 0.2,
     defaultJsonResponse: true,
     defaultDisableThinking: true,
     docsUrl: "https://z.ai/manage-apikey/apikey-list",
@@ -69,7 +65,6 @@ export const PROVIDERS: readonly ProviderPreset[] = [
     label: "Moonshot AI",
     baseUrl: "https://api.moonshot.ai/v1",
     defaultModel: "kimi-k2.7-code-highspeed",
-    defaultTemperature: 0.2,
     defaultJsonResponse: true,
     defaultDisableThinking: false,
     docsUrl: "https://platform.moonshot.ai",
@@ -79,7 +74,6 @@ export const PROVIDERS: readonly ProviderPreset[] = [
     label: "Deepseek",
     baseUrl: "https://api.deepseek.com",
     defaultModel: "deepseek-v4-flash",
-    defaultTemperature: 0.2,
     defaultJsonResponse: true,
     defaultDisableThinking: true,
     docsUrl: "https://platform.deepseek.com/api_keys",
@@ -89,7 +83,6 @@ export const PROVIDERS: readonly ProviderPreset[] = [
     label: "OpenRouter",
     baseUrl: "https://openrouter.ai/api/v1",
     defaultModel: "",
-    defaultTemperature: 0.2,
     defaultJsonResponse: true,
     defaultDisableThinking: false,
     docsUrl: "https://openrouter.ai/keys",
@@ -99,7 +92,6 @@ export const PROVIDERS: readonly ProviderPreset[] = [
     label: "Custom provider",
     baseUrl: "",
     defaultModel: "",
-    defaultTemperature: 0.2,
     defaultJsonResponse: true,
     defaultDisableThinking: false,
   },
@@ -145,10 +137,14 @@ export function resolveModel(id: string, overrideModel: string | undefined): str
 
 /**
  * Resolve the sampling temperature, preferring a stored per-model override,
- * then a per-model preset default, then the provider-level preset default.
- * Falls back to `0.2` for unknown providers.
+ * then a per-model preset default. Returns `undefined` when neither is set, in
+ * which case no temperature is sent to the provider (it uses its own default).
  */
-export function resolveTemperature(id: string, modelId: string | undefined, override: number | undefined): number {
+export function resolveTemperature(
+  id: string,
+  modelId: string | undefined,
+  override: number | undefined,
+): number | undefined {
   if (typeof override === "number") {
     return override;
   }
@@ -185,16 +181,17 @@ export function resolveDisableThinking(
 }
 
 /**
- * The effective default `temperature` for `modelId` under `preset`: a
- * per-model preset default wins over the provider-level default. Pure
+ * The effective default `temperature` for `modelId` under `preset`: only a
+ * per-model preset default is honoured (there is no provider-level default).
+ * Returns `undefined` when no per-model entry exists. Pure
  * (catalog-independent) so the per-model precedence can be tested directly.
  */
-export function presetTemperature(preset: ProviderPreset | undefined, modelId: string | undefined): number {
+export function presetTemperature(preset: ProviderPreset | undefined, modelId: string | undefined): number | undefined {
   const modelPreset = modelId ? preset?.models?.[modelId] : undefined;
   if (typeof modelPreset?.temperature === "number") {
     return modelPreset.temperature;
   }
-  return preset?.defaultTemperature ?? 0.2;
+  return undefined;
 }
 
 /**

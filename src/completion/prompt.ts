@@ -52,7 +52,7 @@ export interface CompletionRequest {
   model: string;
   messages: ChatMessage[];
   maxTokens: number;
-  temperature: number;
+  temperature?: number;
   requestTimeoutMs: number;
   delayMs: number;
   responseFormat?: { type: "json_object" };
@@ -66,9 +66,9 @@ export function buildRequest(messages: ChatMessage[], cfg: AutocompleteConfig, a
     model: cfg.model,
     messages,
     maxTokens: cfg.maxTokens,
-    temperature: cfg.temperature,
     requestTimeoutMs: cfg.requestTimeoutMs,
     delayMs: cfg.delayMs,
+    ...(cfg.temperature !== undefined ? { temperature: cfg.temperature } : {}),
     ...(cfg.jsonResponse ? { responseFormat: { type: "json_object" } } : {}),
     ...(cfg.disableThinking ? { thinking: { type: "disabled" } } : {}),
   };
