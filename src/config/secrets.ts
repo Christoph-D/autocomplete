@@ -1,31 +1,32 @@
 import * as vscode from "vscode";
 
-const KEY_ID = "apiKey";
+const KEY_PREFIX = "apiKey";
 
 export interface SecretStore {
-  getApiKey(): Promise<string | undefined>;
-  setApiKey(key: string): Promise<void>;
-  clearApiKey(): Promise<void>;
-  hasApiKey(): Promise<boolean>;
+  getApiKey(providerId: string): Promise<string | undefined>;
+  setApiKey(providerId: string, key: string): Promise<void>;
+  clearApiKey(providerId: string): Promise<void>;
+  hasApiKey(providerId: string): Promise<boolean>;
 }
 
 export function createSecretStore(secrets: vscode.SecretStorage): SecretStore {
+  const keyFor = (providerId: string) => `${KEY_PREFIX}:${providerId}`;
   return {
-    async getApiKey() {
-      return secrets.get(KEY_ID);
+    async getApiKey(providerId: string) {
+      return secrets.get(keyFor(providerId));
     },
-    async setApiKey(key: string) {
+    async setApiKey(providerId: string, key: string) {
       const trimmed = key.trim();
       if (!trimmed) {
         throw new Error("API key cannot be empty.");
       }
-      await secrets.store(KEY_ID, trimmed);
+      await secrets.store(keyFor(providerId), trimmed);
     },
-    async clearApiKey() {
-      await secrets.delete(KEY_ID);
+    async clearApiKey(providerId: string) {
+      await secrets.delete(keyFor(providerId));
     },
-    async hasApiKey() {
-      const v = await secrets.get(KEY_ID);
+    async hasApiKey(providerId: string) {
+      const v = await secrets.get(keyFor(providerId));
       return typeof v === "string" && v.length > 0;
     },
   };

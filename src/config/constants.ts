@@ -9,8 +9,10 @@ import type { AutocompleteConfig } from "./configuration";
  */
 export const DEFAULT_CONFIG: Readonly<AutocompleteConfig> = {
   enabled: true,
+  provider: "custom",
   model: "",
   apiBaseUrl: "https://example.com/v1",
+  providerProfiles: {},
   maxContextLinesBefore: 100,
   maxContextLinesAfter: 50,
   maxTokens: 100,

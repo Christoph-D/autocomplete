@@ -34,15 +34,36 @@
           "default": true,
           "markdownDescription": "Enable automatic inline AI autocompletion. When disabled, manual trigger still works."
         },
+        "aiAutocomplete.provider": {
+          "type": "string",
+          "default": "custom",
+          "markdownDescription": "Active provider. Use the **AI Autocomplete: Select Provider** command to switch; this also remembers each provider's API key and model. One of `mistral`, `zai`, `deepseek`, `openrouter`, or `custom`."
+        },
         "aiAutocomplete.model": {
           "type": "string",
           "default": "",
-          "markdownDescription": "Model name sent to the backend (e.g. `codestral-latest`, `deepseek-v4-flash`, or any model your OpenAI-compatible endpoint serves)."
+          "markdownDescription": "Model name sent to the backend (e.g. `codestral-latest`, `glm-5.2`, `deepseek-v4-flash`). Driven by provider selection — editing it updates the active provider's remembered model."
         },
         "aiAutocomplete.apiBaseUrl": {
           "type": "string",
           "default": "https://example.com/v1",
-          "markdownDescription": "Base URL of an OpenAI-compatible `/chat/completions` endpoint. Usually ends in `/v1`. Works with OpenRouter, Mistral, Deepseek, Z.ai, OpenAI, Ollama, LM Studio, etc."
+          "markdownDescription": "Base URL of an OpenAI-compatible `/chat/completions` endpoint. Usually ends in `/v1`. Set automatically when you pick a provider; only edit this for the **Custom** provider."
+        },
+        "aiAutocomplete.providerProfiles": {
+          "type": "object",
+          "default": {},
+          "markdownDescription": "Remembered per-provider overrides (model and, for the custom provider, base URL). Managed automatically by provider selection — usually you should not edit this by hand.",
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "baseUrl": {
+                "type": "string"
+              },
+              "model": {
+                "type": "string"
+              }
+            }
+          }
         },
         "aiAutocomplete.maxContextLinesBefore": {
           "type": "number",
@@ -112,6 +133,11 @@
       }
     },
     "commands": [
+      {
+        "command": "aiAutocomplete.selectProvider",
+        "title": "AI Autocomplete: Select Provider",
+        "category": "AI Autocomplete"
+      },
       {
         "command": "aiAutocomplete.setApiKey",
         "title": "AI Autocomplete: Set API Key",

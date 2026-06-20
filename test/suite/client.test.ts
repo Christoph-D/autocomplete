@@ -148,6 +148,29 @@ suite("LlmClient", () => {
     assert.deepStrictEqual(body.thinking, { type: "disabled" });
   });
 
+  test("disables thinking when model starts with glm (Z.ai)", async () => {
+    let capturedInit: RequestInit | undefined;
+    const fetchFn = (async (_url: unknown, init?: RequestInit) => {
+      capturedInit = init;
+      return {
+        ok: true,
+        status: 200,
+        statusText: "OK",
+        async text() {
+          return "";
+        },
+        async json() {
+          return { choices: [{ message: { content: "x" } }] };
+        },
+      } as unknown as Response;
+    }) as typeof fetch;
+
+    const client = createLlmClient({ fetch: fetchFn });
+    await client.complete(baseRequest({ model: "glm-5.2" }), new AbortController().signal);
+    const body = JSON.parse(String(capturedInit?.body));
+    assert.deepStrictEqual(body.thinking, { type: "disabled" });
+  });
+
   test("waits for delayMs before sending the request", async () => {
     let calledAt = 0;
     const start = Date.now();

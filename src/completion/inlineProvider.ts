@@ -50,7 +50,7 @@ export class InlineCompletionProvider implements vscode.InlineCompletionItemProv
       return [];
     }
 
-    const apiKey = await this.deps.secrets.getApiKey();
+    const apiKey = await this.deps.secrets.getApiKey(cfg.provider);
     if (token.isCancellationRequested) {
       return [];
     }

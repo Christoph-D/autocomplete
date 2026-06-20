@@ -7,12 +7,12 @@ import { Logger } from "../../src/logging/logger";
 
 function makeSecrets(key = "sk-test"): SecretStore {
   return {
-    async getApiKey() {
+    async getApiKey(_providerId: string) {
       return key;
     },
-    async setApiKey() {},
-    async clearApiKey() {},
-    async hasApiKey() {
+    async setApiKey(_providerId: string, _key: string) {},
+    async clearApiKey(_providerId: string) {},
+    async hasApiKey(_providerId: string) {
       return !!key;
     },
   };
