@@ -14,6 +14,8 @@ export interface InlineProviderDeps {
   onError?: (err: LlmError) => void;
 }
 
+const SUPPORTED_SCHEMES = new Set(["file", "untitled", "vscode-remote"]);
+
 /**
  * Inline completion provider that defers debouncing and request supersession
  * to VS Code, honoring the CancellationToken it passes in.
@@ -43,7 +45,7 @@ export class InlineCompletionProvider implements vscode.InlineCompletionItemProv
     if (!cfg.enabled && context.triggerKind !== vscode.InlineCompletionTriggerKind.Invoke) {
       return [];
     }
-    if (document.uri.scheme !== "file" && document.uri.scheme !== "untitled") {
+    if (!SUPPORTED_SCHEMES.has(document.uri.scheme)) {
       return [];
     }
     if (token.isCancellationRequested) {

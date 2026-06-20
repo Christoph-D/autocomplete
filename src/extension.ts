@@ -33,10 +33,7 @@ export function activate(context: vscode.ExtensionContext): void {
     onError: (err: LlmError) => handleError(err),
   });
 
-  disposable = vscode.languages.registerInlineCompletionItemProvider(
-    [{ scheme: "file" }, { scheme: "untitled" }],
-    provider,
-  );
+  disposable = vscode.languages.registerInlineCompletionItemProvider({ pattern: "**" }, provider);
   context.subscriptions.push(disposable);
 
   context.subscriptions.push(
