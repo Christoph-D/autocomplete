@@ -29,8 +29,16 @@ export const PROVIDERS: readonly ProviderPreset[] = [
   },
   {
     id: "zai",
-    label: "Z.ai",
+    label: "Z.ai API",
     baseUrl: "https://api.z.ai/api/paas/v4",
+    defaultModel: "glm-5.2",
+    defaultJsonResponse: true,
+    docsUrl: "https://z.ai/manage-apikey/apikey-list",
+  },
+  {
+    id: "zai-coding-plan",
+    label: "Z.ai Coding Plan",
+    baseUrl: "https://api.z.ai/api/coding/paas/v4",
     defaultModel: "glm-5.2",
     defaultJsonResponse: true,
     docsUrl: "https://z.ai/manage-apikey/apikey-list",
