@@ -44,6 +44,14 @@ export const PROVIDERS: readonly ProviderPreset[] = [
     docsUrl: "https://z.ai/manage-apikey/apikey-list",
   },
   {
+    id: "moonshot",
+    label: "Moonshot AI",
+    baseUrl: "https://api.moonshot.ai/v1",
+    defaultModel: "kimi-k2.7-code-highspeed",
+    defaultJsonResponse: true,
+    docsUrl: "https://platform.moonshot.ai",
+  },
+  {
     id: "deepseek",
     label: "Deepseek",
     baseUrl: "https://api.deepseek.com",
