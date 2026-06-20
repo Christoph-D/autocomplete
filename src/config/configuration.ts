@@ -46,11 +46,13 @@ export interface BackendSetting {
   providers: ProviderEntries;
 }
 
-export interface AutocompleteConfig {
+/**
+ * The fields of `AutocompleteConfig` that have a static default. The remaining
+ * fields are derived by `readConfig` from the active provider and its backend
+ * entry, so they have no entry in `DEFAULT_CONFIG`.
+ */
+export interface UserFacingDefaults {
   enabled: boolean;
-  provider: string;
-  model: string;
-  apiBaseUrl: string;
   backend: BackendSetting;
   maxContextLinesBefore: number;
   maxContextLinesAfter: number;
@@ -59,9 +61,15 @@ export interface AutocompleteConfig {
   requestTimeoutMs: number;
   delayMs: number;
   maxContextChars: number;
+  logLevel: LogLevel;
+}
+
+export interface AutocompleteConfig extends UserFacingDefaults {
+  provider: string;
+  model: string;
+  apiBaseUrl: string;
   jsonResponse: boolean;
   disableThinking: boolean;
-  logLevel: LogLevel;
 }
 
 export function readConfig(): AutocompleteConfig {

@@ -18,8 +18,11 @@ function ctx(): CursorContext {
 function cfg(): AutocompleteConfig {
   return {
     ...DEFAULT_CONFIG,
+    provider: "custom",
     model: "example-model",
     apiBaseUrl: "https://example.com/v1",
+    jsonResponse: true,
+    disableThinking: false,
     maxTokens: 64,
     delayMs: 0,
     maxContextChars: 8000,

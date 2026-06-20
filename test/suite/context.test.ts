@@ -7,7 +7,11 @@ import { DEFAULT_CONFIG } from "../../src/config/constants";
 function cfg(overrides: Partial<AutocompleteConfig> = {}): AutocompleteConfig {
   return {
     ...DEFAULT_CONFIG,
+    provider: "custom",
     model: "example-model",
+    apiBaseUrl: "",
+    jsonResponse: true,
+    disableThinking: false,
     maxTokens: 64,
     delayMs: 0,
     maxContextChars: 8000,

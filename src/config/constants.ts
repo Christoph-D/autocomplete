@@ -1,4 +1,4 @@
-import type { AutocompleteConfig } from "./configuration";
+import type { UserFacingDefaults } from "./configuration";
 
 /**
  * Single source of truth for configuration default values.
@@ -7,17 +7,13 @@ import type { AutocompleteConfig } from "./configuration";
  * `contributes.configuration` schema. VS Code returns the package.json default
  * at runtime, so these values are the effective fallbacks for `cfg.get()`.
  *
- * `model` and `apiBaseUrl` are not user-facing settings; they are derived by
- * `readConfig` from the active provider and its backend entry. Both are empty
- * for the default `custom` provider with no entry. `jsonResponse` is likewise
- * derived from the active provider/model; it defaults to `true` for every
- * provider.
+ * Only user-facing fields with a static default live here. The derived fields
+ * (`provider`, `model`, `apiBaseUrl`, `jsonResponse`, `disableThinking`) are
+ * computed by `readConfig` from the active provider and its backend entry, so
+ * they have no static default.
  */
-export const DEFAULT_CONFIG: Readonly<AutocompleteConfig> = {
+export const DEFAULT_CONFIG: Readonly<UserFacingDefaults> = {
   enabled: true,
-  provider: "custom",
-  model: "",
-  apiBaseUrl: "",
   backend: { activeProvider: "custom", providers: {} },
   maxContextLinesBefore: 100,
   maxContextLinesAfter: 50,
@@ -26,7 +22,5 @@ export const DEFAULT_CONFIG: Readonly<AutocompleteConfig> = {
   requestTimeoutMs: 10000,
   delayMs: 500,
   maxContextChars: 10000,
-  jsonResponse: true,
-  disableThinking: false,
   logLevel: "info",
 };
