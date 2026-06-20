@@ -1,5 +1,3 @@
 #!/bin/bash
 
-set -e
-
-#pnpm install
+pnpm install --frozen-lockfile || true
