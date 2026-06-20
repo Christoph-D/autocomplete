@@ -76,7 +76,8 @@ async function refreshStatus(): Promise<void> {
     return;
   }
   if (secrets && !(await secrets.hasApiKey(cfg.provider))) {
-    statusBar?.update({ kind: "no-key" });
+    const preset = getProvider(cfg.provider);
+    statusBar?.update({ kind: "no-key", provider: preset ?? getProvider(CUSTOM_PROVIDER_ID)! });
     return;
   }
   if (lastError && Date.now() - lastError.at < 30_000) {

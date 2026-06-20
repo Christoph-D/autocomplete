@@ -4,7 +4,7 @@ import type { ProviderPreset } from "../config/providers";
 export type StatusState =
   | { kind: "disabled" }
   | { kind: "misconfigured" }
-  | { kind: "no-key" }
+  | { kind: "no-key"; provider: ProviderPreset }
   | { kind: "ready"; provider: ProviderPreset; model: string }
   | { kind: "error"; message: string };
 
@@ -31,8 +31,8 @@ export class StatusBar {
         break;
       case "no-key":
         this.item.text = "$(key) AI: set key";
-        this.item.tooltip = "Click to set the API key for the active provider";
-        this.item.command = "aiAutocomplete.setApiKey";
+        this.item.tooltip = `Click to set the API key for provider ${state.provider.label}`;
+        this.item.command = "aiAutocomplete.selectProvider";
         break;
       case "ready":
         this.item.text = `$(sparkle) AI: ${state.model}`;
