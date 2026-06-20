@@ -96,15 +96,17 @@ async function selectProviderCommand(): Promise<void> {
 
   const hasKey = secrets ? await secrets.hasApiKey(activeId) : false;
 
-  const providerItems: ProviderQuickPickItem[] = PROVIDERS.map((p) => ({
-    label: p.id === activeId ? `$(check) ${p.label}` : p.label,
-    description: p.baseUrl || "custom URL",
-    detail:
-      [p.defaultModel && `default: ${p.defaultModel}`, p.id === activeId && !hasKey && "no API key set"]
-        .filter(Boolean)
-        .join(" · ") || undefined,
-    providerId: p.id,
-  }));
+  const providerItems: ProviderQuickPickItem[] = [...PROVIDERS]
+    .sort((a, b) => a.label.localeCompare(b.label))
+    .map((p) => ({
+      label: p.id === activeId ? `$(check) ${p.label}` : p.label,
+      description: p.baseUrl || "custom URL",
+      detail:
+        [p.defaultModel && `default: ${p.defaultModel}`, p.id === activeId && !hasKey && "no API key set"]
+          .filter(Boolean)
+          .join(" · ") || undefined,
+      providerId: p.id,
+    }));
 
   const activePreset = getProvider(activeId);
   const actionItems: ProviderQuickPickItem[] = [
