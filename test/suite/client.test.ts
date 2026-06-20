@@ -125,7 +125,7 @@ suite("LlmClient", () => {
     assert.strictEqual(out, "");
   });
 
-  test("disables thinking when model starts with deepseek", async () => {
+  test("forwards thinking override when set on the request", async () => {
     let capturedInit: RequestInit | undefined;
     const fetchFn = (async (_url: unknown, init?: RequestInit) => {
       capturedInit = init;
@@ -143,30 +143,7 @@ suite("LlmClient", () => {
     }) as typeof fetch;
 
     const client = createLlmClient({ fetch: fetchFn });
-    await client.complete(baseRequest({ model: "deepseek-v4-flash" }), new AbortController().signal);
-    const body = JSON.parse(String(capturedInit?.body));
-    assert.deepStrictEqual(body.thinking, { type: "disabled" });
-  });
-
-  test("disables thinking when model starts with glm (Z.ai)", async () => {
-    let capturedInit: RequestInit | undefined;
-    const fetchFn = (async (_url: unknown, init?: RequestInit) => {
-      capturedInit = init;
-      return {
-        ok: true,
-        status: 200,
-        statusText: "OK",
-        async text() {
-          return "";
-        },
-        async json() {
-          return { choices: [{ message: { content: "x" } }] };
-        },
-      } as unknown as Response;
-    }) as typeof fetch;
-
-    const client = createLlmClient({ fetch: fetchFn });
-    await client.complete(baseRequest({ model: "glm-5.2" }), new AbortController().signal);
+    await client.complete(baseRequest({ thinking: { type: "disabled" } }), new AbortController().signal);
     const body = JSON.parse(String(capturedInit?.body));
     assert.deepStrictEqual(body.thinking, { type: "disabled" });
   });
@@ -275,7 +252,7 @@ suite("LlmClient", () => {
     assert.strictEqual(out, "resp-2");
   });
 
-  test("does not set thinking for non-deepseek models", async () => {
+  test("does not set thinking when the request does not specify one", async () => {
     let capturedInit: RequestInit | undefined;
     const fetchFn = (async (_url: unknown, init?: RequestInit) => {
       capturedInit = init;
@@ -293,7 +270,7 @@ suite("LlmClient", () => {
     }) as typeof fetch;
 
     const client = createLlmClient({ fetch: fetchFn });
-    await client.complete(baseRequest({ model: "codestral-latest" }), new AbortController().signal);
+    await client.complete(baseRequest({ model: "glm-5.2" }), new AbortController().signal);
     const body = JSON.parse(String(capturedInit?.body));
     assert.ok(!("thinking" in body));
   });

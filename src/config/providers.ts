@@ -12,6 +12,7 @@ export interface ProviderPreset {
   baseUrl: string;
   defaultModel: string;
   defaultJsonResponse: boolean;
+  defaultDisableThinking: boolean;
   /** Where to sign up for an API key. Shown in prompts. */
   docsUrl?: string;
 }
@@ -25,6 +26,7 @@ export const PROVIDERS: readonly ProviderPreset[] = [
     baseUrl: "https://api.mistral.ai/v1",
     defaultModel: "codestral-latest",
     defaultJsonResponse: true,
+    defaultDisableThinking: false,
     docsUrl: "https://console.mistral.ai/api-keys",
   },
   {
@@ -33,6 +35,7 @@ export const PROVIDERS: readonly ProviderPreset[] = [
     baseUrl: "https://api.z.ai/api/paas/v4",
     defaultModel: "glm-5.2",
     defaultJsonResponse: true,
+    defaultDisableThinking: true,
     docsUrl: "https://z.ai/manage-apikey/apikey-list",
   },
   {
@@ -41,6 +44,7 @@ export const PROVIDERS: readonly ProviderPreset[] = [
     baseUrl: "https://api.z.ai/api/coding/paas/v4",
     defaultModel: "glm-5.2",
     defaultJsonResponse: true,
+    defaultDisableThinking: true,
     docsUrl: "https://z.ai/manage-apikey/apikey-list",
   },
   {
@@ -49,6 +53,7 @@ export const PROVIDERS: readonly ProviderPreset[] = [
     baseUrl: "https://api.moonshot.ai/v1",
     defaultModel: "kimi-k2.7-code-highspeed",
     defaultJsonResponse: true,
+    defaultDisableThinking: false,
     docsUrl: "https://platform.moonshot.ai",
   },
   {
@@ -57,6 +62,7 @@ export const PROVIDERS: readonly ProviderPreset[] = [
     baseUrl: "https://api.deepseek.com",
     defaultModel: "deepseek-v4-flash",
     defaultJsonResponse: true,
+    defaultDisableThinking: true,
     docsUrl: "https://platform.deepseek.com/api_keys",
   },
   {
@@ -65,6 +71,7 @@ export const PROVIDERS: readonly ProviderPreset[] = [
     baseUrl: "https://openrouter.ai/api/v1",
     defaultModel: "",
     defaultJsonResponse: true,
+    defaultDisableThinking: false,
     docsUrl: "https://openrouter.ai/keys",
   },
   {
@@ -73,6 +80,7 @@ export const PROVIDERS: readonly ProviderPreset[] = [
     baseUrl: "",
     defaultModel: "",
     defaultJsonResponse: true,
+    defaultDisableThinking: false,
   },
 ];
 
@@ -124,4 +132,16 @@ export function resolveJsonResponse(id: string, profileValue: boolean | undefine
     return profileValue;
   }
   return getProvider(id)?.defaultJsonResponse ?? true;
+}
+
+/**
+ * Resolve the thinking-disabled preference for a provider, preferring a
+ * remembered profile override over the preset default. Falls back to `false`
+ * for unknown providers so thinking stays enabled by default.
+ */
+export function resolveDisableThinking(id: string, profileValue: boolean | undefined): boolean {
+  if (typeof profileValue === "boolean") {
+    return profileValue;
+  }
+  return getProvider(id)?.defaultDisableThinking ?? false;
 }

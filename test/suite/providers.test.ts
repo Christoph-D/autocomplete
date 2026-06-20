@@ -5,6 +5,7 @@ import {
   getProvider,
   isCustomProvider,
   resolveBaseUrl,
+  resolveDisableThinking,
   resolveJsonResponse,
   resolveModel,
 } from "../../src/config/providers";
@@ -63,6 +64,13 @@ suite("provider catalog", () => {
     }
   });
 
+  test("only deepseek and the z.ai providers default to disabling thinking", () => {
+    for (const p of PROVIDERS) {
+      const expected = p.id === "deepseek" || p.id === "zai" || p.id === "zai-coding-plan";
+      assert.strictEqual(p.defaultDisableThinking, expected, `${p.id} defaultDisableThinking should be ${expected}`);
+    }
+  });
+
   test("resolveJsonResponse prefers the stored profile, then the preset default", () => {
     assert.strictEqual(resolveJsonResponse("zai", undefined), true);
     assert.strictEqual(resolveJsonResponse("zai", false), false);
@@ -70,5 +78,17 @@ suite("provider catalog", () => {
     assert.strictEqual(resolveJsonResponse(CUSTOM_PROVIDER_ID, undefined), true);
     assert.strictEqual(resolveJsonResponse(CUSTOM_PROVIDER_ID, false), false);
     assert.strictEqual(resolveJsonResponse("unknown", undefined), true);
+  });
+
+  test("resolveDisableThinking prefers the stored profile, then the preset default", () => {
+    assert.strictEqual(resolveDisableThinking("zai", undefined), true);
+    assert.strictEqual(resolveDisableThinking("deepseek", undefined), true);
+    assert.strictEqual(resolveDisableThinking("zai-coding-plan", undefined), true);
+    assert.strictEqual(resolveDisableThinking("zai", false), false);
+    assert.strictEqual(resolveDisableThinking("mistral", undefined), false);
+    assert.strictEqual(resolveDisableThinking("mistral", true), true);
+    assert.strictEqual(resolveDisableThinking(CUSTOM_PROVIDER_ID, undefined), false);
+    assert.strictEqual(resolveDisableThinking(CUSTOM_PROVIDER_ID, true), true);
+    assert.strictEqual(resolveDisableThinking("unknown", undefined), false);
   });
 });

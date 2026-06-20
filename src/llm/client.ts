@@ -66,9 +66,8 @@ export function createLlmClient(deps: LlmClientDeps = {}): LlmClient {
         if (req.responseFormat) {
           reqBody.response_format = req.responseFormat;
         }
-        if (req.model.startsWith("deepseek") || req.model.startsWith("glm")) {
-          // Disable thinking for lower latency
-          reqBody.thinking = { type: "disabled" };
+        if (req.thinking) {
+          reqBody.thinking = req.thinking;
         }
 
         const res = await doFetch(url, {

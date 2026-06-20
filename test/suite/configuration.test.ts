@@ -75,6 +75,39 @@ suite("normalizeProfiles", () => {
     assert.deepStrictEqual(normalizeProfiles({ mistral: { jsonResponse: 1 } }), {});
   });
 
+  test("drops a disableThinking that matches the provider's preset default", () => {
+    assert.deepStrictEqual(normalizeProfiles({ deepseek: { disableThinking: true } }), {});
+    assert.deepStrictEqual(normalizeProfiles({ zai: { disableThinking: true } }), {});
+    assert.deepStrictEqual(normalizeProfiles({ mistral: { disableThinking: false } }), {});
+  });
+
+  test("keeps a disableThinking override that deviates from the preset", () => {
+    assert.deepStrictEqual(normalizeProfiles({ deepseek: { disableThinking: false } }), {
+      deepseek: { disableThinking: false },
+    });
+    assert.deepStrictEqual(normalizeProfiles({ mistral: { disableThinking: true } }), {
+      mistral: { disableThinking: true },
+    });
+    assert.deepStrictEqual(normalizeProfiles({ [CUSTOM_PROVIDER_ID]: { disableThinking: true } }), {
+      [CUSTOM_PROVIDER_ID]: { disableThinking: true },
+    });
+  });
+
+  test("keeps a disableThinking override alongside other overrides", () => {
+    const out = normalizeProfiles({ deepseek: { model: "deepseek-v4-pro", disableThinking: false } });
+    assert.deepStrictEqual(out, { deepseek: { model: "deepseek-v4-pro", disableThinking: false } });
+  });
+
+  test("drops disableThinking matching preset while keeping a genuine override on the same profile", () => {
+    const out = normalizeProfiles({ deepseek: { model: "deepseek-v4-pro", disableThinking: true } });
+    assert.deepStrictEqual(out, { deepseek: { model: "deepseek-v4-pro" } });
+  });
+
+  test("ignores non-boolean disableThinking values", () => {
+    assert.deepStrictEqual(normalizeProfiles({ deepseek: { disableThinking: "yes" } }), {});
+    assert.deepStrictEqual(normalizeProfiles({ deepseek: { disableThinking: 1 } }), {});
+  });
+
   test("ignores whitespace when comparing against the preset", () => {
     const out = normalizeProfiles({ mistral: { model: `  ${MISTRAL_MODEL}  ` } });
     assert.deepStrictEqual(out, {});

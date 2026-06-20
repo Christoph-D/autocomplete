@@ -5,6 +5,7 @@ import {
   getProvider,
   isCustomProvider,
   resolveBaseUrl,
+  resolveDisableThinking,
   resolveJsonResponse,
   resolveModel,
 } from "./providers";
@@ -17,6 +18,7 @@ export interface ProviderProfile {
   baseUrl?: string;
   model?: string;
   jsonResponse?: boolean;
+  disableThinking?: boolean;
 }
 
 export type ProviderProfiles = Record<string, ProviderProfile>;
@@ -46,6 +48,7 @@ export interface AutocompleteConfig {
   delayMs: number;
   maxContextChars: number;
   jsonResponse: boolean;
+  disableThinking: boolean;
   logLevel: LogLevel;
 }
 
@@ -68,6 +71,7 @@ export function readConfig(): AutocompleteConfig {
     delayMs: cfg.get<number>("delayMs", DEFAULT_CONFIG.delayMs),
     maxContextChars: cfg.get<number>("maxContextChars", DEFAULT_CONFIG.maxContextChars),
     jsonResponse: resolveJsonResponse(provider, profile?.jsonResponse),
+    disableThinking: resolveDisableThinking(provider, profile?.disableThinking),
     logLevel: cfg.get<LogLevel>("logLevel", DEFAULT_CONFIG.logLevel),
   };
 }
@@ -157,6 +161,7 @@ export function normalizeProfiles(raw: unknown): ProviderProfiles {
     const baseUrl = (value as { baseUrl?: unknown }).baseUrl;
     const model = (value as { model?: unknown }).model;
     const jsonResponse = (value as { jsonResponse?: unknown }).jsonResponse;
+    const disableThinking = (value as { disableThinking?: unknown }).disableThinking;
     if (typeof baseUrl === "string" && baseUrl.trim() && !isPresetBaseUrl(key, baseUrl)) {
       profile.baseUrl = baseUrl;
     }
@@ -165,6 +170,9 @@ export function normalizeProfiles(raw: unknown): ProviderProfiles {
     }
     if (typeof jsonResponse === "boolean" && !isPresetJsonResponse(key, jsonResponse)) {
       profile.jsonResponse = jsonResponse;
+    }
+    if (typeof disableThinking === "boolean" && !isPresetDisableThinking(key, disableThinking)) {
+      profile.disableThinking = disableThinking;
     }
     if (Object.keys(profile).length > 0) {
       out[key] = profile;
@@ -186,6 +194,11 @@ function isPresetModel(id: string, value: string): boolean {
 function isPresetJsonResponse(id: string, value: boolean): boolean {
   const preset = getProvider(id);
   return (preset?.defaultJsonResponse ?? true) === value;
+}
+
+function isPresetDisableThinking(id: string, value: boolean): boolean {
+  const preset = getProvider(id);
+  return (preset?.defaultDisableThinking ?? false) === value;
 }
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {

@@ -37,7 +37,7 @@
         "aiAutocomplete.providers": {
           "type": "object",
           "default": {},
-          "markdownDescription": "Provider configuration. `activeProvider` is the current provider id; `profiles` remembers per-provider overrides (model, jsonResponse, and, for the custom provider, base URL). Managed automatically by provider selection — usually you should not edit this by hand.",
+          "markdownDescription": "Provider configuration. `activeProvider` is the current provider id; `profiles` remembers per-provider overrides (model, jsonResponse, disableThinking, and, for the custom provider, base URL). Managed automatically by provider selection — usually you should not edit this by hand.",
           "properties": {
             "activeProvider": {
               "type": "string",
@@ -57,6 +57,10 @@
                   "jsonResponse": {
                     "type": "boolean",
                     "markdownDescription": "Request JSON responses from the LLM for this provider. Defaults to `true`; only `false` deviations are stored."
+                  },
+                  "disableThinking": {
+                    "type": "boolean",
+                    "markdownDescription": "Disable thinking (send `thinking: { type: \"disabled\" }`) for this provider for lower latency. Defaults to `true` for Deepseek and Z.ai, `false` elsewhere; only deviations from the preset are stored."
                   }
                 }
               }

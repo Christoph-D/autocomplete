@@ -26,5 +26,6 @@ export const DEFAULT_CONFIG: Readonly<AutocompleteConfig> = {
   delayMs: 500,
   maxContextChars: 10000,
   jsonResponse: true,
+  disableThinking: false,
   logLevel: "info",
 };

@@ -56,6 +56,7 @@ export interface CompletionRequest {
   requestTimeoutMs: number;
   delayMs: number;
   responseFormat?: { type: "json_object" };
+  thinking?: { type: "disabled" };
 }
 
 export function buildRequest(messages: ChatMessage[], cfg: AutocompleteConfig, apiKey: string): CompletionRequest {
@@ -69,5 +70,6 @@ export function buildRequest(messages: ChatMessage[], cfg: AutocompleteConfig, a
     requestTimeoutMs: cfg.requestTimeoutMs,
     delayMs: cfg.delayMs,
     ...(cfg.jsonResponse ? { responseFormat: { type: "json_object" } } : {}),
+    ...(cfg.disableThinking ? { thinking: { type: "disabled" } } : {}),
   };
 }
