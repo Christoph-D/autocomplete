@@ -146,30 +146,46 @@ async function selectProviderCommand(): Promise<void> {
     return;
   }
 
+  const previousId = activeId;
   await switchProvider(picked.providerId);
-  await configureActiveProvider();
+  const configured = await configureActiveProvider();
+  if (!configured) {
+    await switchProvider(previousId);
+    await refreshStatus();
+  }
 }
 
 /**
  * After a provider switch (or initial activation), prompt for any missing
  * required configuration: custom base URL, model, and API key.
+ *
+ * Returns `false` if the user dismissed any of the prompts (so the caller can
+ * revert a provider switch), `true` once all required configuration is in
+ * place.
  */
-async function configureActiveProvider(): Promise<void> {
+async function configureActiveProvider(): Promise<boolean> {
   const id = activeProviderId();
 
   if (isCustomProvider(id) && !readConfig().apiBaseUrl) {
-    await promptBaseUrl(id);
+    if (!(await promptBaseUrl(id))) {
+      return false;
+    }
   }
 
   if (!readConfig().model) {
-    await promptModel(id);
+    if (!(await promptModel(id))) {
+      return false;
+    }
   }
 
   if (secrets && !(await secrets.hasApiKey(id))) {
-    await promptApiKey(id);
+    if (!(await promptApiKey(id))) {
+      return false;
+    }
   }
 
   await refreshStatus();
+  return true;
 }
 
 async function promptBaseUrl(providerId: string): Promise<boolean> {
@@ -214,7 +230,7 @@ async function promptModel(providerId: string): Promise<boolean> {
   return true;
 }
 
-async function promptApiKey(providerId: string): Promise<void> {
+async function promptApiKey(providerId: string): Promise<boolean> {
   const preset = getProvider(providerId);
   const existing = (await secrets?.getApiKey(providerId)) ?? "";
   const key = await vscode.window.showInputBox({
@@ -228,12 +244,13 @@ async function promptApiKey(providerId: string): Promise<void> {
     validateInput: (v) => (v.trim().length === 0 ? "API key cannot be empty." : null),
   });
   if (key === undefined) {
-    return;
+    return false;
   }
   await secrets?.setApiKey(providerId, key);
   vscode.window.showInformationMessage(`AI Autocomplete: API key saved for ${preset?.label ?? providerId}.`);
   lastError = null;
   await refreshStatus();
+  return true;
 }
 
 async function clearApiKeyCommand(): Promise<void> {
