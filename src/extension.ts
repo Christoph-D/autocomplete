@@ -1,7 +1,7 @@
 import * as vscode from "vscode";
 import { createSecretStore, type SecretStore } from "./config/secrets";
 import { readConfig, setEnabled, switchProvider, setProviderModel, setProviderBaseUrl } from "./config/configuration";
-import { CUSTOM_PROVIDER_ID, getProvider, isCustomProvider, PROVIDERS } from "./config/providers";
+import { CUSTOM_PROVIDER_ID, getProvider, isCustomProvider, PROVIDERS, resolveModel } from "./config/providers";
 import { createLlmClient, LlmError, type LlmClient } from "./llm/client";
 import { InlineCompletionProvider } from "./completion/inlineProvider";
 import { StatusBar, type StatusState } from "./ui/statusBar";
@@ -94,19 +94,17 @@ async function selectProviderCommand(): Promise<void> {
   const cfg = readConfig();
   const activeId = cfg.provider;
 
-  const hasKey = secrets ? await secrets.hasApiKey(activeId) : false;
-
   const providerItems: ProviderQuickPickItem[] = [...PROVIDERS]
     .sort((a, b) => a.label.localeCompare(b.label))
-    .map((p) => ({
-      label: p.id === activeId ? `$(check) ${p.label}` : p.label,
-      description: p.baseUrl || "custom URL",
-      detail:
-        [p.defaultModel && `default: ${p.defaultModel}`, p.id === activeId && !hasKey && "no API key set"]
-          .filter(Boolean)
-          .join(" · ") || undefined,
-      providerId: p.id,
-    }));
+    .map((p) => {
+      const entry = cfg.backend.providers[p.id];
+      const model = resolveModel(p.id, entry?.activeModel);
+      return {
+        label: p.id === activeId ? `$(check) ${p.label}` : p.label,
+        description: model,
+        providerId: p.id,
+      };
+    });
 
   const activePreset = getProvider(activeId);
   const actionItems: ProviderQuickPickItem[] = [
