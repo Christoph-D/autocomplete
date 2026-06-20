@@ -7,8 +7,9 @@ const SECTION = "aiAutocomplete";
 export type LogLevel = "off" | "error" | "info" | "trace";
 
 /**
- * Per-provider remembered settings. Stored under `aiAutocomplete.providerProfiles`
- * keyed by provider id. The `custom` provider's base URL lives here too.
+ * Per-provider override settings, stored under `aiAutocomplete.providerProfiles`
+ * keyed by provider id. Only deviations from a provider's preset belong here
+ * (the custom provider, which has no preset, always stores its base URL/model).
  */
 export interface ProviderProfile {
   baseUrl?: string;
@@ -37,7 +38,7 @@ export interface AutocompleteConfig {
 export function readConfig(): AutocompleteConfig {
   const cfg = vscode.workspace.getConfiguration(SECTION);
   const provider = normalizeProvider(cfg.get<string>("provider", DEFAULT_CONFIG.provider));
-  const profiles = readProfiles(cfg.get<unknown>("providerProfiles", DEFAULT_CONFIG.providerProfiles));
+  const profiles = normalizeProfiles(cfg.get<unknown>("providerProfiles", DEFAULT_CONFIG.providerProfiles));
   const profile = profiles[provider];
   return {
     enabled: cfg.get<boolean>("enabled", DEFAULT_CONFIG.enabled),
@@ -80,7 +81,7 @@ export async function switchProvider(providerId: string): Promise<string> {
  */
 export async function setProviderModel(providerId: string, model: string): Promise<void> {
   const cfg = vscode.workspace.getConfiguration(SECTION);
-  const profiles = readProfiles(cfg.get<unknown>("providerProfiles", {}));
+  const profiles = normalizeProfiles(cfg.get<unknown>("providerProfiles", {}));
   const id = normalizeProvider(providerId);
   const value = model === getProvider(id)?.defaultModel ? undefined : model;
   setProfileField(profiles, id, "model", value);
@@ -93,7 +94,7 @@ export async function setProviderModel(providerId: string, model: string): Promi
  */
 export async function setProviderBaseUrl(providerId: string, baseUrl: string): Promise<void> {
   const cfg = vscode.workspace.getConfiguration(SECTION);
-  const profiles = readProfiles(cfg.get<unknown>("providerProfiles", {}));
+  const profiles = normalizeProfiles(cfg.get<unknown>("providerProfiles", {}));
   const id = normalizeProvider(providerId);
   const value = isCustomProvider(id) ? baseUrl : baseUrl === getProvider(id)?.baseUrl ? undefined : baseUrl;
   setProfileField(profiles, id, "baseUrl", value);
@@ -120,7 +121,14 @@ function normalizeProvider(id: string | undefined): string {
   return getProvider(id) ? (id as string) : CUSTOM_PROVIDER_ID;
 }
 
-function readProfiles(raw: unknown): ProviderProfiles {
+/**
+ * Parse raw `providerProfiles` data and keep only genuine overrides: any
+ * `baseUrl`/`model` that matches the provider's preset is dropped, as are
+ * empty profile objects and malformed entries. This is the single chokepoint
+ * that guarantees the setting never persists redundant (non-override) data —
+ * including legacy or hand-edited input.
+ */
+export function normalizeProfiles(raw: unknown): ProviderProfiles {
   if (typeof raw !== "object" || raw === null || Array.isArray(raw)) {
     return {};
   }
@@ -132,10 +140,10 @@ function readProfiles(raw: unknown): ProviderProfiles {
     const profile: ProviderProfile = {};
     const baseUrl = (value as { baseUrl?: unknown }).baseUrl;
     const model = (value as { model?: unknown }).model;
-    if (typeof baseUrl === "string" && baseUrl.trim()) {
+    if (typeof baseUrl === "string" && baseUrl.trim() && !isPresetBaseUrl(key, baseUrl)) {
       profile.baseUrl = baseUrl;
     }
-    if (typeof model === "string" && model.trim()) {
+    if (typeof model === "string" && model.trim() && !isPresetModel(key, model)) {
       profile.model = model;
     }
     if (Object.keys(profile).length > 0) {
@@ -143,4 +151,14 @@ function readProfiles(raw: unknown): ProviderProfiles {
     }
   }
   return out;
+}
+
+function isPresetBaseUrl(id: string, value: string): boolean {
+  const preset = getProvider(id);
+  return !!preset && preset.baseUrl === value.trim();
+}
+
+function isPresetModel(id: string, value: string): boolean {
+  const preset = getProvider(id);
+  return !!preset && preset.defaultModel === value.trim();
 }
