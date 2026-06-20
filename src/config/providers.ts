@@ -1,10 +1,10 @@
 /**
  * Built-in provider presets.
  *
- * The active provider's effective `apiBaseUrl` and `model` are mirrored into the
- * top-level `aiAutocomplete.apiBaseUrl` / `aiAutocomplete.model` settings (so the
- * LLM client and prompt builder stay agnostic). Per-provider overrides — including
- * the custom provider's base URL — are remembered in `aiAutocomplete.providerProfiles`.
+ * The active provider's effective `apiBaseUrl` and `model` are resolved from
+ * the provider preset together with any per-provider override stored in
+ * `aiAutocomplete.providerProfiles` (which also holds the custom provider's
+ * base URL).
  */
 export interface ProviderPreset {
   id: string;

@@ -19,6 +19,7 @@ function cfg(): AutocompleteConfig {
   return {
     ...DEFAULT_CONFIG,
     model: "example-model",
+    apiBaseUrl: "https://example.com/v1",
     maxTokens: 64,
     delayMs: 0,
     maxContextChars: 8000,

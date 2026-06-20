@@ -6,12 +6,16 @@ import type { AutocompleteConfig } from "./configuration";
  * These mirror the `"default"` declarations in package.json's
  * `contributes.configuration` schema. VS Code returns the package.json default
  * at runtime, so these values are the effective fallbacks for `cfg.get()`.
+ *
+ * `model` and `apiBaseUrl` are not user-facing settings; they are derived by
+ * `readConfig` from the active provider and its profile. Both are empty for the
+ * default `custom` provider with no profile.
  */
 export const DEFAULT_CONFIG: Readonly<AutocompleteConfig> = {
   enabled: true,
   provider: "custom",
   model: "",
-  apiBaseUrl: "https://example.com/v1",
+  apiBaseUrl: "",
   providerProfiles: {},
   maxContextLinesBefore: 100,
   maxContextLinesAfter: 50,

@@ -39,16 +39,6 @@
           "default": "custom",
           "markdownDescription": "Active provider. Use the **AI Autocomplete: Select Provider** command to switch; this also remembers each provider's API key and model. One of `mistral`, `zai`, `deepseek`, `openrouter`, or `custom`."
         },
-        "aiAutocomplete.model": {
-          "type": "string",
-          "default": "",
-          "markdownDescription": "Model name sent to the backend (e.g. `codestral-latest`, `glm-5.2`, `deepseek-v4-flash`). Driven by provider selection — editing it updates the active provider's remembered model."
-        },
-        "aiAutocomplete.apiBaseUrl": {
-          "type": "string",
-          "default": "https://example.com/v1",
-          "markdownDescription": "Base URL of an OpenAI-compatible `/chat/completions` endpoint. Usually ends in `/v1`. Set automatically when you pick a provider; only edit this for the **Custom** provider."
-        },
         "aiAutocomplete.providerProfiles": {
           "type": "object",
           "default": {},

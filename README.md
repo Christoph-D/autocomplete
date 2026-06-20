@@ -36,13 +36,11 @@ The status bar shows the active provider and model, e.g. `AI: Mistral · codestr
 
 Most settings are driven by provider selection and rarely need manual editing:
 
-| Setting                           | Notes                                                                               |
-| --------------------------------- | ----------------------------------------------------------------------------------- |
-| `aiAutocomplete.provider`         | Active provider id (`mistral`, `zai`, `deepseek`, `openrouter`, `custom`)           |
-| `aiAutocomplete.apiBaseUrl`       | Effective base URL; set automatically per provider                                  |
-| `aiAutocomplete.model`            | Effective model; remembered per provider                                            |
-| `aiAutocomplete.providerProfiles` | Remembered per-provider overrides (model/base URL) — managed by **Select Provider** |
-| _API key_                         | Per-provider, stored in the OS keychain via **Set API Key**                         |
+| Setting                           | Notes                                                                                 |
+| --------------------------------- | ------------------------------------------------------------------------------------- |
+| `aiAutocomplete.provider`         | Active provider id (`mistral`, `zai`, `deepseek`, `openrouter`, `custom`)             |
+| `aiAutocomplete.providerProfiles` | Remembered per-provider model and base URL overrides — managed by **Select Provider** |
+| _API key_                         | Per-provider, stored in the OS keychain via **Set API Key**                           |
 
 Additional settings (context size, temperature, delay, logging, etc.) are available but don't usually need to be
 changed.

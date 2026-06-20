@@ -37,12 +37,14 @@ export interface AutocompleteConfig {
 export function readConfig(): AutocompleteConfig {
   const cfg = vscode.workspace.getConfiguration(SECTION);
   const provider = normalizeProvider(cfg.get<string>("provider", DEFAULT_CONFIG.provider));
+  const profiles = readProfiles(cfg.get<unknown>("providerProfiles", DEFAULT_CONFIG.providerProfiles));
+  const profile = profiles[provider];
   return {
     enabled: cfg.get<boolean>("enabled", DEFAULT_CONFIG.enabled),
     provider,
-    model: cfg.get<string>("model", DEFAULT_CONFIG.model),
-    apiBaseUrl: cfg.get<string>("apiBaseUrl", DEFAULT_CONFIG.apiBaseUrl),
-    providerProfiles: readProfiles(cfg.get<unknown>("providerProfiles", DEFAULT_CONFIG.providerProfiles)),
+    model: resolveModel(provider, profile?.model),
+    apiBaseUrl: resolveBaseUrl(provider, profile?.baseUrl),
+    providerProfiles: profiles,
     maxContextLinesBefore: cfg.get<number>("maxContextLinesBefore", DEFAULT_CONFIG.maxContextLinesBefore),
     maxContextLinesAfter: cfg.get<number>("maxContextLinesAfter", DEFAULT_CONFIG.maxContextLinesAfter),
     maxTokens: cfg.get<number>("maxTokens", DEFAULT_CONFIG.maxTokens),
@@ -60,68 +62,58 @@ export async function setEnabled(value: boolean): Promise<void> {
 }
 
 /**
- * Persist the current effective `apiBaseUrl`/`model` into the current provider's
- * profile, then activate `providerId` and load its remembered profile (or preset
- * defaults) back into the effective settings.
+ * Activate `providerId` as the current provider. Per-provider overrides live
+ * in `providerProfiles` (the single source of truth for model/base URL), so
+ * switching only needs to update the active provider id.
  *
  * Returns the provider that is now active so callers can drive follow-up prompts.
  */
 export async function switchProvider(providerId: string): Promise<string> {
   const target = normalizeProvider(providerId);
-  const cfg = vscode.workspace.getConfiguration(SECTION);
-  const profiles = readProfiles(cfg.get<unknown>("providerProfiles", {}));
-
-  const current = normalizeProvider(cfg.get<string>("provider", DEFAULT_CONFIG.provider));
-  const currentModel = cfg.get<string>("model", "");
-  const currentBaseUrl = cfg.get<string>("apiBaseUrl", "");
-
-  profiles[current] = {
-    ...(currentModel ? { model: currentModel } : {}),
-    ...(currentBaseUrl && currentBaseUrl !== DEFAULT_CONFIG.apiBaseUrl ? { baseUrl: currentBaseUrl } : {}),
-  };
-
-  const nextProfile = profiles[target] ?? {};
-  const nextBaseUrl = resolveBaseUrl(target, nextProfile.baseUrl);
-  const nextModel = resolveModel(target, nextProfile.model);
-
-  await cfg.update("provider", target, vscode.ConfigurationTarget.Global);
-  await cfg.update("apiBaseUrl", nextBaseUrl || DEFAULT_CONFIG.apiBaseUrl, vscode.ConfigurationTarget.Global);
-  await cfg.update("model", nextModel, vscode.ConfigurationTarget.Global);
-  await cfg.update("providerProfiles", profiles, vscode.ConfigurationTarget.Global);
-
+  await vscode.workspace.getConfiguration(SECTION).update("provider", target, vscode.ConfigurationTarget.Global);
   return target;
 }
 
 /**
- * Persist the current effective `apiBaseUrl`/`model` into the active provider's
- * profile without switching providers. Used after the user edits the custom
- * provider's base URL or any provider's model.
+ * Remember `model` for `providerId`, storing it as a profile override unless it
+ * matches the provider's preset default (in which case the override is dropped).
  */
-export async function saveActiveProfile(): Promise<void> {
+export async function setProviderModel(providerId: string, model: string): Promise<void> {
   const cfg = vscode.workspace.getConfiguration(SECTION);
-  const current = normalizeProvider(cfg.get<string>("provider", DEFAULT_CONFIG.provider));
   const profiles = readProfiles(cfg.get<unknown>("providerProfiles", {}));
-
-  const model = cfg.get<string>("model", "");
-  const baseUrl = cfg.get<string>("apiBaseUrl", "");
-
-  // For built-in providers we only need to remember deviations from the preset;
-  // the custom provider needs its base URL stored regardless.
-  const preset = getProvider(current);
-  const baseUrlToStore = isCustomProvider(current) ? baseUrl : baseUrl === preset?.baseUrl ? undefined : baseUrl;
-  const modelToStore = model === preset?.defaultModel ? undefined : model;
-
-  const updated: ProviderProfile = {
-    ...(baseUrlToStore ? { baseUrl: baseUrlToStore } : {}),
-    ...(modelToStore ? { model: modelToStore } : {}),
-  };
-
-  if (Object.keys(updated).length === 0) {
-    delete profiles[current];
-  } else {
-    profiles[current] = updated;
-  }
+  const id = normalizeProvider(providerId);
+  const value = model === getProvider(id)?.defaultModel ? undefined : model;
+  setProfileField(profiles, id, "model", value);
   await cfg.update("providerProfiles", profiles, vscode.ConfigurationTarget.Global);
+}
+
+/**
+ * Remember `baseUrl` for `providerId`. The custom provider always stores its
+ * base URL; built-in providers only store a deviation from their preset.
+ */
+export async function setProviderBaseUrl(providerId: string, baseUrl: string): Promise<void> {
+  const cfg = vscode.workspace.getConfiguration(SECTION);
+  const profiles = readProfiles(cfg.get<unknown>("providerProfiles", {}));
+  const id = normalizeProvider(providerId);
+  const value = isCustomProvider(id) ? baseUrl : baseUrl === getProvider(id)?.baseUrl ? undefined : baseUrl;
+  setProfileField(profiles, id, "baseUrl", value);
+  await cfg.update("providerProfiles", profiles, vscode.ConfigurationTarget.Global);
+}
+
+function setProfileField(
+  profiles: ProviderProfiles,
+  id: string,
+  key: "model" | "baseUrl",
+  value: string | undefined,
+): void {
+  if (value) {
+    profiles[id] = { ...profiles[id], [key]: value };
+  } else if (profiles[id]) {
+    delete profiles[id][key];
+    if (Object.keys(profiles[id]).length === 0) {
+      delete profiles[id];
+    }
+  }
 }
 
 function normalizeProvider(id: string | undefined): string {

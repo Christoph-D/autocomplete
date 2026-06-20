@@ -1,7 +1,6 @@
 import * as vscode from "vscode";
 import { createSecretStore, type SecretStore } from "./config/secrets";
-import { readConfig, setEnabled, switchProvider, saveActiveProfile } from "./config/configuration";
-import { DEFAULT_CONFIG } from "./config/constants";
+import { readConfig, setEnabled, switchProvider, setProviderModel, setProviderBaseUrl } from "./config/configuration";
 import { CUSTOM_PROVIDER_ID, getProvider, isCustomProvider, PROVIDERS } from "./config/providers";
 import { createLlmClient, LlmError, type LlmClient } from "./llm/client";
 import { InlineCompletionProvider } from "./completion/inlineProvider";
@@ -71,9 +70,7 @@ async function refreshStatus(): Promise<void> {
     statusBar?.update({ kind: "disabled" });
     return;
   }
-  const baseUrlConfigured = isCustomProvider(cfg.provider)
-    ? Boolean(cfg.apiBaseUrl) && cfg.apiBaseUrl !== DEFAULT_CONFIG.apiBaseUrl
-    : Boolean(cfg.apiBaseUrl);
+  const baseUrlConfigured = Boolean(cfg.apiBaseUrl);
   if (!baseUrlConfigured || !cfg.model) {
     statusBar?.update({ kind: "misconfigured" });
     return;
@@ -161,26 +158,13 @@ async function selectProviderCommand(): Promise<void> {
  */
 async function configureActiveProvider(): Promise<void> {
   const id = activeProviderId();
-  let needsProfileSave = false;
 
-  if (isCustomProvider(id)) {
-    const cfg = readConfig();
-    if (!cfg.apiBaseUrl || cfg.apiBaseUrl === DEFAULT_CONFIG.apiBaseUrl) {
-      if (await promptBaseUrl(id)) {
-        needsProfileSave = true;
-      }
-    }
+  if (isCustomProvider(id) && !readConfig().apiBaseUrl) {
+    await promptBaseUrl(id);
   }
 
-  const cfg = readConfig();
-  if (!cfg.model) {
-    if (await promptModel(id)) {
-      needsProfileSave = true;
-    }
-  }
-
-  if (needsProfileSave) {
-    await saveActiveProfile();
+  if (!readConfig().model) {
+    await promptModel(id);
   }
 
   if (secrets && !(await secrets.hasApiKey(id))) {
@@ -195,7 +179,7 @@ async function promptBaseUrl(providerId: string): Promise<boolean> {
   const value = await vscode.window.showInputBox({
     prompt: `Base URL for ${preset?.label ?? providerId} (OpenAI-compatible, usually ending in /v1).`,
     placeHolder: "https://your-host/v1",
-    value: readConfig().apiBaseUrl === DEFAULT_CONFIG.apiBaseUrl ? "" : readConfig().apiBaseUrl,
+    value: readConfig().apiBaseUrl,
     ignoreFocusOut: true,
     validateInput: (v) => {
       const t = v.trim();
@@ -211,9 +195,7 @@ async function promptBaseUrl(providerId: string): Promise<boolean> {
   if (value === undefined) {
     return false;
   }
-  await vscode.workspace
-    .getConfiguration("aiAutocomplete")
-    .update("apiBaseUrl", value.trim(), vscode.ConfigurationTarget.Global);
+  await setProviderBaseUrl(providerId, value.trim());
   return true;
 }
 
@@ -230,10 +212,7 @@ async function promptModel(providerId: string): Promise<boolean> {
   if (value === undefined) {
     return false;
   }
-  await vscode.workspace
-    .getConfiguration("aiAutocomplete")
-    .update("model", value.trim(), vscode.ConfigurationTarget.Global);
-  await saveActiveProfile();
+  await setProviderModel(providerId, value.trim());
   return true;
 }
 
